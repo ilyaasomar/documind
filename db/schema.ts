@@ -9,6 +9,7 @@ import {
   integer,
   vector,
   real,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 
 // enums
@@ -78,7 +79,6 @@ export const session = pgTable(
       .notNull(),
     ipAddress: text("ip_address"),
     userAgent: text("user_agent"),
-    activeOrganizationId: text("active_organization_id"),
     userId: text("user_id")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
@@ -152,7 +152,7 @@ export const member = pgTable(
     userId: text("user_id")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
-    role: text("role").default("member").notNull(),
+    role: memberRoleEnum("role").default("member").notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at")
       .defaultNow()
@@ -160,10 +160,11 @@ export const member = pgTable(
       .notNull(),
   },
   (table) => [
-    index("member_organizationId_userId_idx").on(
+    uniqueIndex("member_organizationId_userId_idx").on(
       table.organizationId,
       table.userId,
     ),
+    index("member_userId_idx").on(table.userId),
   ],
 );
 
@@ -175,9 +176,10 @@ export const invitation = pgTable(
       .notNull()
       .references(() => organization.id, { onDelete: "cascade" }),
     email: text("email").notNull(),
-    role: text("role"),
-    status: text("status").default("pending").notNull(),
+    role: memberRoleEnum("role").default("member").notNull(),
+    status: invitationStatusEnum("status").default("pending").notNull(),
     expiresAt: timestamp("expires_at").notNull(),
+    token: text("token").notNull().unique(),
     inviterId: text("inviter_id")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
@@ -193,7 +195,7 @@ export const documents = pgTable(
   "documents",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    organizationId: text("organization_id")
+    organizationId: uuid("organization_id")
       .notNull()
       .references(() => organization.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
