@@ -127,6 +127,7 @@ export function SignupForm() {
                     aria-invalid={fieldState.invalid}
                     placeholder="Ilyas Omar"
                     autoComplete="on"
+                    disabled={loading}
                   />
                   {fieldState.invalid && (
                     <FieldError errors={[fieldState.error]} />
@@ -145,10 +146,12 @@ export function SignupForm() {
                   </FieldLabel>
                   <Input
                     {...field}
+                    type="email"
                     id="signup-form-work-email"
                     aria-invalid={fieldState.invalid}
                     placeholder="you@company.com"
                     autoComplete="on"
+                    disabled={loading}
                   />
                   {fieldState.invalid && (
                     <FieldError errors={[fieldState.error]} />
@@ -173,6 +176,7 @@ export function SignupForm() {
                       aria-invalid={fieldState.invalid}
                       placeholder="••••••••"
                       autoComplete="new-password"
+                      disabled={loading}
                     />
                     {/* button to show/hide password */}
                     <Button
@@ -211,6 +215,7 @@ export function SignupForm() {
                       aria-invalid={fieldState.invalid}
                       placeholder="••••••••"
                       autoComplete="off"
+                      disabled={loading}
                     />
                     <Button
                       type="button"

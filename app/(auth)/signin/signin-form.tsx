@@ -63,7 +63,6 @@ export function SigninForm() {
         onSuccess: (data) => {
           setLoading(false);
           form.reset();
-          console.log(data);
           router.push("/");
         },
         onError: async (ctx) => {
@@ -98,10 +97,12 @@ export function SigninForm() {
                   <FieldLabel htmlFor="signin-form-email">Email</FieldLabel>
                   <Input
                     {...field}
+                    type="email"
                     id="signin-form-email"
                     aria-invalid={fieldState.invalid}
                     placeholder="you@company.com"
                     autoComplete="on"
+                    disabled={loading}
                   />
                   {fieldState.invalid && (
                     <FieldError errors={[fieldState.error]} />
@@ -126,6 +127,7 @@ export function SigninForm() {
                       aria-invalid={fieldState.invalid}
                       placeholder="••••••••"
                       autoComplete="new-password"
+                      disabled={loading}
                     />
                     {/* button to show/hide password */}
                     <Button
@@ -172,7 +174,7 @@ export function SigninForm() {
           Don&apos;t have an account?{" "}
           <Link
             href="/signup"
-            className={`font-medium underline-offset-4 hover:underline ${styles.primaryTextColor}`}
+            className={`font-medium underline-offset-4 hover:underline ${styles.primaryTextColor} ${loading && "pointer-events-none opacity-50"}`}
           >
             Sign up
           </Link>

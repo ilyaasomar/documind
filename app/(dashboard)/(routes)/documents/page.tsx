@@ -1,7 +1,7 @@
-import React from "react";
+import ShowDocumentData from "./_components/show-data";
 
 const Documents = () => {
-  return <div>Documents</div>;
+  return <ShowDocumentData />;
 };
 
 export default Documents;

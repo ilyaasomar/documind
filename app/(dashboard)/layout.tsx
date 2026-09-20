@@ -1,5 +1,6 @@
 import { AppSidebar } from "@/components/sidebar";
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { Navbar } from "@/components/navbar";
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { db } from "@/db";
 import { member, user } from "@/db/schema";
 import { getUser } from "@/lib/actions/get-user";
@@ -25,10 +26,7 @@ export default async function DashboardLayout({
   return (
     <SidebarProvider>
       <AppSidebar />
-      <main>
-        <SidebarTrigger />
-        {children}
-      </main>
+      <SidebarInset>{children}</SidebarInset>
     </SidebarProvider>
   );
 }
