@@ -19,10 +19,6 @@ export const fileTypeEnum = pgEnum("file_type", [
   "docx",
   "xlsx",
   "txt",
-  "md",
-  "html",
-  "json",
-  "csv",
 ]);
 export const documentStatusEnum = pgEnum("document_status", [
   "uploading",
