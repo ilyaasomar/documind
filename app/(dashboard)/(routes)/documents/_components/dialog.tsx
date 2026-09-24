@@ -17,7 +17,7 @@ interface DocumentDialogProps {
   setOpen: (open: boolean) => void;
   title?: string;
   description?: string;
-  onSubmit?: () => void;
+  footer: React.ReactNode;
   children?: React.ReactNode;
 }
 
@@ -26,7 +26,7 @@ const DocumentDialog = ({
   setOpen,
   title,
   description,
-  onSubmit,
+  footer,
   children,
 }: DocumentDialogProps) => {
   return (
@@ -37,12 +37,13 @@ const DocumentDialog = ({
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
         <Separator />
-        <div className="p-1 flex flex-col">{children}</div>
+        <div className="p-1 flex flex-col mt-0">{children}</div>
         <DialogFooter>
-          <DialogClose render={<Button variant="outline">Cancel</Button>} />
+          {/* <DialogClose render={<Button variant="outline">Cancel</Button>} />
           <Button type="submit" onClick={onSubmit}>
             Save changes
-          </Button>
+          </Button> */}
+          {footer}
         </DialogFooter>
       </DialogContent>
     </Dialog>

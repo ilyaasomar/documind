@@ -1,6 +1,7 @@
 import { createDocument } from "@/lib/actions/document";
 import { getMembership } from "@/lib/actions/get-membership";
-import { NextRequest, NextResponse } from "next/server";
+import { after, NextRequest, NextResponse } from "next/server";
+import { processDocument } from "../../../lib/actions/document";
 
 export async function POST(request: NextRequest) {
   const membership = await getMembership();
@@ -27,6 +28,9 @@ export async function POST(request: NextRequest) {
         { status: 409 },
       );
     }
+
+    after(() => processDocument(result.document.id));
+    
     return NextResponse.json(
       { message: "Document uploaded.", data: result.document },
       { status: 201 },

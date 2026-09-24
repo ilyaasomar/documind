@@ -3,7 +3,9 @@ import { db } from "@/db";
 import { documents, fileTypeEnum } from "@/db/schema";
 import { createHash } from "crypto";
 import { and, eq } from "drizzle-orm";
-import { deleteObject, uploadObject } from "../r2";
+import { deleteObject, getObject, uploadObject } from "../r2";
+
+import { extractText, getDocumentProxy } from "unpdf";
 
 const MAX_SIZE = 50 * 1024 * 1024; // 50MB
 
@@ -20,6 +22,7 @@ interface CreateDocumentProps {
   organizationId: string;
   userId: string;
 }
+// create document by uploading to R2 and inserting into db
 export async function createDocument({
   file,
   organizationId,
@@ -79,4 +82,73 @@ export async function createDocument({
     await deleteObject(storageKey);
     throw error;
   }
+}
+
+// process document
+export async function processDocument(documentId: string) {
+  try {
+    const [document] = await db
+      .select()
+      .from(documents)
+      .where(eq(documents.id, documentId))
+      .limit(1);
+
+    if (!document) return;
+
+    // 1. read the file from R2
+    const buffer = await getObject(document.storageKey);
+
+    // 2. extract the text page by page
+    const pages = await extractPage(buffer, document.fileType);
+    const characters = pages.reduce(
+      (total, page) => total + page.text.length,
+      0,
+    );
+
+    // 3. scan has already no text, so i have to stop
+    if (characters < 50) {
+      throw new Error(
+        "This file has no readable text. Scanned documents are not supported yet.",
+      );
+    }
+    console.log(
+      `[processDocument] ${document.name}: ${pages.length} pages, ${characters} characters`,
+    );
+    console.log(pages[0].text.slice(0, 300)); // peek at page 1 while developing
+
+    await db
+      .update(documents)
+      .set({
+        pageCount: pages.length,
+        progress: 45,
+      })
+      .where(eq(documents.id, documentId));
+
+    // TODO next: chunk the pages, create embeddings, insert into `chunks`
+  } catch (error) {
+    await db
+      .update(documents)
+      .set({
+        status: "failed",
+        stage: null,
+        errorMessage:
+          error instanceof Error ? error.message : "Processing failed.",
+      })
+      .where(eq(documents.id, documentId));
+  }
+}
+
+type Page = { page: number; text: string };
+
+export async function extractPage(
+  buffer: Buffer,
+  fileType: string,
+): Promise<Page[]> {
+  if (fileType === "pdf") {
+    const pdf = await getDocumentProxy(new Uint8Array(buffer));
+    const { text } = await extractText(pdf, { mergePages: false });
+    return text.map((pageText, index) => ({ page: index + 1, text: pageText }));
+  }
+  // txt and md have no pages
+  return [{ page: 1, text: buffer.toString("utf8") }];
 }
