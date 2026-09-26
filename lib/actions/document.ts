@@ -1,6 +1,6 @@
 "use server";
 import { db } from "@/db";
-import { documents, fileTypeEnum } from "@/db/schema";
+import { chunks, documents, fileTypeEnum } from "@/db/schema";
 import { createHash } from "crypto";
 import { and, eq } from "drizzle-orm";
 import { deleteObject, getObject, uploadObject } from "../r2";
@@ -97,7 +97,7 @@ export async function processDocument(documentId: string) {
 
     // 1. read the file from R2
     const buffer = await getObject(document.storageKey);
-
+    console.log("BUFFER", buffer);
     // 2. extract the text page by page
     const pages = await extractPage(buffer, document.fileType);
     const characters = pages.reduce(
@@ -124,7 +124,9 @@ export async function processDocument(documentId: string) {
       })
       .where(eq(documents.id, documentId));
 
-    // TODO next: chunk the pages, create embeddings, insert into `chunks`
+    // now chunk the text
+    const chunks = chuckPage(pages);
+    console.log(["Processed chunks", chunks]);
   } catch (error) {
     await db
       .update(documents)
@@ -146,9 +148,83 @@ export async function extractPage(
 ): Promise<Page[]> {
   if (fileType === "pdf") {
     const pdf = await getDocumentProxy(new Uint8Array(buffer));
+    console.log("BDF EXTRACT", pdf);
     const { text } = await extractText(pdf, { mergePages: false });
+    console.log("TEXT EXTRACT", text);
+    console.log(
+      "What loops returns",
+      text.map((pageText, index) => ({ page: index + 1, text: pageText })),
+    );
     return text.map((pageText, index) => ({ page: index + 1, text: pageText }));
   }
+
   // txt and md have no pages
+
   return [{ page: 1, text: buffer.toString("utf8") }];
+}
+
+type Chunk = { content: string; pageNumber: number; chunkIndex: number };
+const CHUNK_SIZE = 1000;
+const OVERLAP = 150;
+export async function chuckPage(pages: Page[]): Promise<Chunk[]> {
+  let chunks: Chunk[] = [];
+  let carry = ""; // carry over from previous chunk
+  console.log("carry", carry);
+  for (const page of pages) {
+    const text = page.text.replace(/\s+/g, " ").trim();
+    console.log("trimmed text", text);
+    // split into sentences: cut after . ! ? followed by a space
+    const sentences = text.split(/[.!?]\s+/);
+    console.log("sentences", sentences);
+
+    let current = carry;
+    console.log("current", current);
+    for (const sentence of sentences) {
+      if (
+        current.length + sentence.length > CHUNK_SIZE &&
+        current.length > 30
+      ) {
+        console.log("current", current);
+        console.log("sentence", sentence);
+        console.log("page", page.page);
+        console.log("current length", current.length);
+        chunks.push({
+          content: current.trim(),
+          pageNumber: page.page,
+          chunkIndex: chunks.length,
+        });
+
+        carry = lastSentence(current);
+        console.log("last sentence of carry", carry);
+        current = `${carry} ${sentence}`;
+        console.log("current", current);
+      } else {
+        current = `${current} ${sentence}`;
+        console.log("current", current);
+      }
+    }
+
+    carry = carry.trim();
+    console.log("carry", carry);
+  }
+
+  if (carry.length > 0) {
+    console.log("carry", carry);
+    console.log("page", pages[pages.length - 1].page);
+    console.log("chunks length", chunks.length);
+    chunks.push({
+      content: carry,
+      pageNumber: pages[pages.length - 1].page,
+      chunkIndex: chunks.length,
+    });
+  }
+
+  console.log("CHUNKS", chunks);
+  return chunks;
+}
+
+function lastSentence(text: string) {
+  const parts = text.split(/(?<=[.!?])\s+/);
+  console.log("parts", parts);
+  return parts[parts.length - 1] ?? "";
 }
