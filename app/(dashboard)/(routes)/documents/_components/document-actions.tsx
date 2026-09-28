@@ -1,4 +1,5 @@
-import React from "react";
+"use client";
+import React, { useEffect } from "react";
 import DocumentDialog from "./dialog";
 import { FileRejection, useDropzone } from "react-dropzone";
 import { Check, ImageIcon, Loader2 } from "lucide-react";
@@ -14,6 +15,13 @@ const STEPS = [
   "Generating embeddings",
   "Indexing for search",
 ];
+
+const STAGE_TO_STEP: Record<string, number> = {
+  extracting: 1,
+  embedding: 2,
+  indexing: 3,
+};
+
 const DocumentActions = ({
   open,
   setOpen,
@@ -29,6 +37,8 @@ const DocumentActions = ({
   const [progress, setProgress] = React.useState<number>(0);
   const [message, setMessage] = React.useState<string | null>(null);
   const [currentStep, setCurrentStep] = React.useState<number>(-1);
+
+  const [documentId, setDocumentId] = React.useState<string | null>(null);
 
   const hiddenInputRef = React.useRef<HTMLInputElement>(null);
   const router = useRouter();
@@ -85,6 +95,32 @@ const DocumentActions = ({
     disabled: !!selectedFile,
   });
 
+  useEffect(() => {
+    if (!documentId) return;
+    const timer = setInterval(async () => {
+      const response = await fetch(`/api/documents/${documentId}/status`);
+
+      const data = await response.json();
+      setProgress(data.progress);
+
+      if (!response.ok) return;
+
+      if (data.status === "ready") {
+        setCurrentStep(4);
+        setDocumentId(null);
+        router.refresh();
+      } else if (data.status === "failed") {
+        setPhase("error");
+        setMessage(data.errorMessage ?? "Processing failed.");
+        setDocumentId(null);
+        setCurrentStep(-1);
+      } else if (data.stage) {
+        setCurrentStep(STAGE_TO_STEP[data.stage]);
+      }
+    }, 2000);
+
+    return () => clearInterval(timer);
+  }, [documentId]);
   // handle file submit
   async function handleSubmit() {
     if (!selectedFile) return;
@@ -100,24 +136,25 @@ const DocumentActions = ({
     xhr.open("POST", "/api/documents");
     xhr.upload.onprogress = (event) => {
       if (event.lengthComputable) {
-        setProgress(Math.round((event.loaded / event.total) * 100));
+        const percent = (event.loaded / event.total) * 100;
+        setProgress(Math.round(percent * 0.25));
       }
     };
     xhr.onload = () => {
       const body = JSON.parse(xhr.responseText || "{}");
       if (xhr.status === 201) {
         setPhase("done");
-        setProgress(100);
+        setDocumentId(body.data.id);
         setCurrentStep(1); // server is now extracting the text
         router.refresh();
       } else if (xhr.status === 409) {
         setPhase("error");
+        setCurrentStep(-1);
         setMessage(
           body.message ?? "This document is already in your workspace.",
         );
-        setProgress(0);
-        setCurrentStep(0);
       } else {
+        setCurrentStep(-1);
         setPhase("error");
         setMessage(body.message ?? "Upload failed. Please try again.");
       }
@@ -125,45 +162,38 @@ const DocumentActions = ({
 
     xhr.onerror = () => {
       setPhase("error");
+      setCurrentStep(-1);
       setMessage("Upload failed. Please check your connection.");
     };
     xhr.send(form);
-    // try {
-    //   const form = new FormData();
-    //   form.append("file", selectedFile!);
-
-    //   const response = await fetch("/api/documents", {
-    //     method: "POST",
-    //     body: form,
-    //   });
-    //   const result = response.json();
-    //   console.log(result);
-    // } catch (error) {
-    //   console.log(error);
-    // }
   }
 
   const footer =
     phase === "done" ? (
       <Button
         onClick={close}
-        className={`${styles.primaryBgColor} ${styles.primaryHoverBgColor}`}
+        className={`${styles.primaryBgColor} ${styles.primaryHoverBgColor} cursor-pointer`}
       >
         Done
       </Button>
     ) : phase === "error" ? (
-      <Button variant="outline" onClick={reset}>
+      <Button variant="outline" onClick={reset} className="cursor-pointer">
         Choose another file
       </Button>
     ) : (
       <>
-        <Button variant="outline" onClick={close} disabled={uploading}>
+        <Button
+          variant="outline"
+          onClick={close}
+          disabled={uploading}
+          className="cursor-pointer"
+        >
           Cancel
         </Button>
         <Button
           onClick={handleSubmit}
           disabled={!selectedFile || uploading}
-          className={`${styles.primaryBgColor} ${styles.primaryHoverBgColor}`}
+          className={`${styles.primaryBgColor} ${styles.primaryHoverBgColor} cursor-pointer`}
         >
           {uploading ? "Uploading…" : "Upload"}
         </Button>
@@ -234,7 +264,7 @@ const DocumentActions = ({
               </p>
             </div>
 
-            {currentStep > 0 && (
+            {currentStep >= 0 && (
               <>
                 {/* progress */}
                 <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-muted">
@@ -242,10 +272,6 @@ const DocumentActions = ({
                     className={`h-full transition-[width] duration-200 ${styles.primaryBgColor}`}
                     style={{ width: `${progress}%` }}
                   />
-                </div>
-                <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
-                  <span>{STEPS[currentStep]}</span>
-                  {uploading && <span>{progress}%</span>}
                 </div>
 
                 {/* the 4 steps */}

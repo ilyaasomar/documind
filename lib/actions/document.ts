@@ -1,11 +1,11 @@
-"use server";
 import { db } from "@/db";
-import { chunks, documents, fileTypeEnum } from "@/db/schema";
+import { chunks, documents, fileTypeEnum, organization } from "@/db/schema";
 import { createHash } from "crypto";
 import { and, eq } from "drizzle-orm";
 import { deleteObject, getObject, uploadObject } from "../r2";
 
 import { extractText, getDocumentProxy } from "unpdf";
+import { generateEmbeddings } from "./embeddings";
 
 const MAX_SIZE = 50 * 1024 * 1024; // 50MB
 
@@ -125,9 +125,57 @@ export async function processDocument(documentId: string) {
       .where(eq(documents.id, documentId));
 
     // now chunk the text
-    const chunks = chuckPage(pages);
-    console.log(["Processed chunks", chunks]);
+    const chunkList = chuckPage(pages);
+
+    const sizes = chunkList.map((c) => c.content.length);
+    console.log("chunks:", chunkList.length, "biggest:", Math.max(...sizes));
+
+    // console.log(["Processed chunks", chunks]);
+    await db
+      .update(documents)
+      .set({
+        stage: "embedding",
+        progress: 50,
+        pageCount: pages.length,
+      })
+      .where(eq(documents.id, documentId));
+
+    const vectors = await generateEmbeddings(
+      chunkList.map((chunk) => chunk.content),
+    );
+    await db
+      .update(documents)
+      .set({ stage: "indexing", progress: 90 })
+      .where(eq(documents.id, documentId));
+
+    // re-processing must not duplicate chunks
+    await db.delete(chunks).where(eq(chunks.documentId, documentId));
+    await db.insert(chunks).values(
+      chunkList.map((chunk, index) => ({
+        documentId: documentId,
+        organizationId: document.organizationId,
+        chunkIndex: chunk.chunkIndex,
+        content: chunk.content,
+        pageNumber: chunk.pageNumber,
+        embedding: vectors[index].embedding,
+      })),
+    );
+
+    await db
+      .update(documents)
+      .set({ status: "ready", stage: null, progress: 100 })
+      .where(eq(documents.id, documentId));
   } catch (error) {
+    // the file encountered an error so delete it from R2 and db
+    const [document] = await db
+      .select({ storageKey: documents.storageKey })
+      .from(documents)
+      .where(eq(documents.id, documentId))
+      .limit(1);
+    if (document.storageKey) {
+      await deleteObject(document.storageKey).catch(() => {});
+    }
+    // await db.delete(documents).where(eq(documents.id, documentId));
     await db
       .update(documents)
       .set({
@@ -166,65 +214,25 @@ export async function extractPage(
 type Chunk = { content: string; pageNumber: number; chunkIndex: number };
 const CHUNK_SIZE = 1000;
 const OVERLAP = 150;
-export async function chuckPage(pages: Page[]): Promise<Chunk[]> {
-  let chunks: Chunk[] = [];
-  let carry = ""; // carry over from previous chunk
-  console.log("carry", carry);
+
+export function chuckPage(pages: Page[]): Chunk[] {
+  const chunks: Chunk[] = [];
+
   for (const page of pages) {
     const text = page.text.replace(/\s+/g, " ").trim();
-    console.log("trimmed text", text);
-    // split into sentences: cut after . ! ? followed by a space
-    const sentences = text.split(/[.!?]\s+/);
-    console.log("sentences", sentences);
 
-    let current = carry;
-    console.log("current", current);
-    for (const sentence of sentences) {
-      if (
-        current.length + sentence.length > CHUNK_SIZE &&
-        current.length > 30
-      ) {
-        console.log("current", current);
-        console.log("sentence", sentence);
-        console.log("page", page.page);
-        console.log("current length", current.length);
+    for (let start = 0; start < text.length; start += CHUNK_SIZE - OVERLAP) {
+      const content = text.slice(start, start + CHUNK_SIZE).trim();
+
+      if (content.length > 30) {
         chunks.push({
-          content: current.trim(),
+          content,
           pageNumber: page.page,
           chunkIndex: chunks.length,
         });
-
-        carry = lastSentence(current);
-        console.log("last sentence of carry", carry);
-        current = `${carry} ${sentence}`;
-        console.log("current", current);
-      } else {
-        current = `${current} ${sentence}`;
-        console.log("current", current);
       }
     }
-
-    carry = carry.trim();
-    console.log("carry", carry);
   }
 
-  if (carry.length > 0) {
-    console.log("carry", carry);
-    console.log("page", pages[pages.length - 1].page);
-    console.log("chunks length", chunks.length);
-    chunks.push({
-      content: carry,
-      pageNumber: pages[pages.length - 1].page,
-      chunkIndex: chunks.length,
-    });
-  }
-
-  console.log("CHUNKS", chunks);
   return chunks;
-}
-
-function lastSentence(text: string) {
-  const parts = text.split(/(?<=[.!?])\s+/);
-  console.log("parts", parts);
-  return parts[parts.length - 1] ?? "";
 }
