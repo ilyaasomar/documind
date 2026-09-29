@@ -1,4 +1,4 @@
-import { Navbar } from "@/components/navbar";
+import { Header } from "@/components/header";
 import { db } from "@/db";
 import { member, organization } from "@/db/schema";
 import { getUser } from "@/lib/actions/get-user";
@@ -15,12 +15,12 @@ export default async function Home() {
   const organization_name = organizations.organization.name;
 
   return (
-    <>
-      <Navbar
+    <div className="flex-1 sm:p-2">
+      <Header
         title="Dashboard"
         description={`Your workspace at ${organization_name}`}
       />
-      <div className="flex-1 p-4 sm:p-6">Hello from page.tsx</div>
-    </>
+      <div className="flex-1 sm:px-2">Hello from page.tsx</div>
+    </div>
   );
 }

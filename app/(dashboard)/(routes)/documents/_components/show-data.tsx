@@ -1,30 +1,34 @@
 "use client";
 import { useState } from "react";
 import { styles } from "@/app/styles";
-import { Navbar } from "@/components/navbar";
 import { Button } from "@/components/ui/button";
-import DocumentDialog from "./dialog";
 import DocumentActions from "./document-actions";
+import { DataTable } from "./data-table";
+import { columns } from "./column";
+import { Header } from "@/components/header";
+import { DocumentInterface } from "../page";
 
-const ShowDocumentData = () => {
+const ShowDocumentData = ({ data }: { data: DocumentInterface[] }) => {
   const [open, setOpen] = useState(false);
   return (
-    <>
-      <Navbar title="Documents" description="Upload and manage your files">
+    <div className="flex-1 sm:p-2">
+      <Header title="Documents" description="Upload and manage your files">
         <Button
           type="button"
-          className={`h-10 px-4 w-full cursor-pointer ${styles.primaryBgColor} ${styles.primaryHoverBgColor}`}
+          className={`h-10 px-4 w-full cursor-pointer ${styles.primaryBgColor} ${styles.primaryHoverBgColor} dark:${styles.primaryHoverBgColor} dark:${styles.primaryBgColor} dark:text-white`}
           onClick={() => setOpen(true)}
         >
           Upload Document
         </Button>
-      </Navbar>
-      <div className="flex-1 p-4 sm:p-6">
-        {/* document action here: insert, update */}
-        <DocumentActions open={open} setOpen={setOpen} />
-        Documents
+      </Header>
+      {/* document action here: insert, update */}
+      <DocumentActions open={open} setOpen={setOpen} />
+      {/* calling data table */}
+
+      <div className="mt-4 sm:px-2">
+        <DataTable columns={columns} data={data} />
       </div>
-    </>
+    </div>
   );
 };
 

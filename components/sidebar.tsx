@@ -93,13 +93,13 @@ export function AppSidebar() {
       {/* sidebar footer */}
       <SidebarFooter>
         <SidebarMenu
-          className={`bg-white border-2 border-muted-foreground/30 dark:bg-[#4191F9] text-white rounded-md py-1`}
+          className={`bg-white border-2 border-muted-foreground/30 dark:bg-[#1d4f9c] text-white rounded-md py-1`}
         >
           <SidebarMenuItem>
             <DropdownMenu>
               <DropdownMenuTrigger
                 render={
-                  <SidebarMenuButton className="bg-white text-primary dark:bg-[#4191F9] hover:bg-white dark:hover:bg-[#4191F9]/90 hover:text-primary dark:active:bg-[#4191F9]/90 dark:active:text-white dark:data-[state=open]:bg-[#4191F9]/90 dark:data-[state=open]:text-white cursor-pointer">
+                  <SidebarMenuButton className="bg-white text-primary dark:bg-[#1d4f9c] hover:bg-white dark:hover:bg-[#1d4f9c]/90 hover:text-primary dark:active:bg-[#1d4f9c]/90 dark:active:text-white dark:data-[state=open]:bg-[#1d4f9c]/90 dark:data-[state=open]:text-white cursor-pointer">
                     <User2 />
                     <div className="flex flex-col">
                       <span className="font-semibold text-md dark:text-white">

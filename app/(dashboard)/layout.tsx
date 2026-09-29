@@ -26,7 +26,10 @@ export default async function DashboardLayout({
   return (
     <SidebarProvider>
       <AppSidebar />
-      <SidebarInset>{children}</SidebarInset>
+      <SidebarInset>
+        <Navbar />
+        {children}
+      </SidebarInset>
     </SidebarProvider>
   );
 }
