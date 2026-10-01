@@ -24,9 +24,9 @@ export default async function DashboardLayout({
   if (!membership) redirect("/onboarding");
   // 3. Both checks passed, so show the dashboard page
   return (
-    <SidebarProvider>
+    <SidebarProvider className="h-svh overflow-hidden">
       <AppSidebar />
-      <SidebarInset>
+      <SidebarInset className="min-h-0">
         <Navbar />
         {children}
       </SidebarInset>
