@@ -37,22 +37,28 @@ const ChatContent = ({ data }: { data: ShowChatDataProps[] }) => {
   // when select a document go to db and get that document has conversation
   React.useEffect(() => {
     async function checkDocumentHasConversation() {
-      const response = await fetch(
-        `/api/conversation/chat/${selectedDocument}`,
-        {
-          method: "GET",
-        },
-      );
+      const response = await fetch(`/api/conversation/${selectedDocument}`, {
+        method: "GET",
+      });
       const data = await response.json();
       setIsDocumentHasConversation(data.hasConversation);
     }
     checkDocumentHasConversation();
   }, [selectedDocument]);
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    console.log("inputValue:", inputValue);
-    console.log("selectedDocument:", selectedDocument);
+    const documentData = {
+      inputValue: inputValue,
+      selectedDocument: selectedDocument,
+    };
+    const response = await fetch(`/api/conversation`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(documentData),
+    });
+    const data = await response.json();
+    console.log("response data:", data);
   };
   return (
     <div className="flex h-full flex-col">
