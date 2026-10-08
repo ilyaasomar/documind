@@ -32,12 +32,18 @@ export async function GET(
       where: {
         documentId: id,
       },
+      with: {
+        messages: {
+          with: { citations: true },
+        },
+      },
     });
 
     if (conversation) {
       return NextResponse.json(
         {
           hasConversation: true,
+          conversation: conversation,
         },
         { status: 200 },
       );

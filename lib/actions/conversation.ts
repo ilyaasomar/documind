@@ -54,12 +54,15 @@ export async function processConversation(
     conversationId = created.id;
   }
 
-  // create the message for the conversation
-  await db.insert(messages).values({
-    conversationId,
-    role: "user",
-    content: prompt,
-  });
+  // create the message for the conversation only saves the question
+  const [savedQuestion] = await db
+    .insert(messages)
+    .values({
+      conversationId,
+      role: "user",
+      content: prompt,
+    })
+    .returning();
 
   const queryEmbedding = await generateEmbedding(prompt);
   const similarity = sql<number>`1 - (${cosineDistance(chunks.embedding, queryEmbedding)})`;
@@ -110,10 +113,7 @@ export async function processConversation(
       content: "No matching passages found. Try again.",
       notFound: true,
     });
-    return NextResponse.json(
-      { message: "No matching passages found." },
-      { status: 404 },
-    );
+    throw new Error("No matching passages found. Try again.");
   } else {
     const { text } = await generateText({
       model: openai("gpt-4o-mini"),
@@ -127,6 +127,7 @@ export async function processConversation(
       prompt: `Passage:\n\n${context}\n\nQuestion: ${prompt}`,
     });
 
+    // now save the answer
     const [assistantMessage] = await db
       .insert(messages)
       .values({
@@ -152,9 +153,25 @@ export async function processConversation(
         })),
       )
       .returning();
+    console.log("assistantMessage", assistantMessage);
     return {
-      conversationId,
-      answer: text,
+      id: conversationId,
+      documentId: selectedDocumentId,
+      messages: [
+        {
+          id: savedQuestion.id,
+          role: "user",
+          content: prompt,
+          pageNumber: undefined,
+        },
+        {
+          id: assistantMessage.id,
+          role: "assistant",
+          content: text,
+          pageNumber: savedCitations.filter((c) => c.number === 1)[0]
+            ?.pageNumber,
+        },
+      ],
       citation: savedCitations.map((c) => ({
         number: c.number,
         documentName: c.documentName,
@@ -164,7 +181,3 @@ export async function processConversation(
     };
   }
 }
-
-// export async function generateText(){
-//   const
-// }

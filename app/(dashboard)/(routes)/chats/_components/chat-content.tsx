@@ -11,7 +11,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { ChevronDown, File, Plus, Send } from "lucide-react";
+import { ChevronDown, File, Loader2, Plus, Send } from "lucide-react";
 import React from "react";
 
 interface ShowChatDataProps {
@@ -23,6 +23,17 @@ interface ShowChatDataProps {
   createdAt: Date;
 }
 
+interface ConversationMessages {
+  id: string;
+  documentId: string;
+  messages: {
+    id: string;
+    content: string;
+    role: "user" | "assistant";
+    pageNumber: number;
+  }[];
+}
+
 const ChatContent = ({ data }: { data: ShowChatDataProps[] }) => {
   const [isSidebarVisible, setIsSidebarVisible] = React.useState(false);
   const [isDocumentHasConversation, setIsDocumentHasConversation] =
@@ -30,7 +41,12 @@ const ChatContent = ({ data }: { data: ShowChatDataProps[] }) => {
   const [selectedDocument, setSelectedDocument] = React.useState<string | null>(
     null,
   );
+  const [conversation, setConversation] =
+    React.useState<ConversationMessages>();
   const [inputValue, setInputValue] = React.useState("");
+  const [isLoading, setIsLoading] = React.useState(false);
+
+  console.log("conversation", conversation);
 
   const items = data.map((doc) => ({ value: doc.id, label: doc.name }));
 
@@ -41,24 +57,88 @@ const ChatContent = ({ data }: { data: ShowChatDataProps[] }) => {
         method: "GET",
       });
       const data = await response.json();
-      setIsDocumentHasConversation(data.hasConversation);
+      console.log("returned data", data.conversation);
+      const filteredData = {
+        id: data?.conversation?.id,
+        documentId: data?.conversation?.documentId,
+        messages: data?.conversation?.messages?.map((message: any) => ({
+          id: message.id,
+          content: message.content,
+          role: message.role,
+          pageNumber: message.citations?.filter((c: any) => c.number === 1)[0]
+            ?.pageNumber,
+        })),
+      };
+
+      console.log("conversationData", filteredData);
+      // setIsDocumentHasConversation(data.hasConversation);
+      setConversation(filteredData);
     }
     checkDocumentHasConversation();
   }, [selectedDocument]);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const documentData = {
-      inputValue: inputValue,
-      selectedDocument: selectedDocument,
-    };
-    const response = await fetch(`/api/conversation`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(documentData),
-    });
-    const data = await response.json();
-    console.log("response data:", data);
+    setIsLoading(true);
+    try {
+      const documentData = {
+        inputValue: inputValue,
+        selectedDocument: selectedDocument,
+      };
+      const response = await fetch(`/api/conversation`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(documentData),
+      });
+      const data = await response.json();
+      console.log("returned data", data);
+      console.log("response", response);
+      if (response.status === 400) {
+        setIsLoading(false);
+        setConversation((prev) => ({
+          id: prev?.id ?? "",
+          documentId: prev?.documentId ?? "",
+          messages: [
+            ...(prev?.messages ?? []).concat(
+              data.messages.map((m: any) => m.content),
+            ),
+          ],
+        }));
+        setInputValue("");
+        setIsLoading(false);
+
+        return;
+      }
+      const filteredData = {
+        id: data?.id,
+        documentId: data?.documentId,
+        messages: data?.messages?.map(
+          (message: ConversationMessages["messages"][number]) => ({
+            id: message.id,
+            content: message.content,
+            role: message.role,
+            pageNumber: message.pageNumber,
+          }),
+        ),
+      };
+
+      console.log("conversationData", filteredData);
+
+      setIsDocumentHasConversation(data.hasConversation);
+      setConversation((prev) => ({
+        id: data?.id,
+        documentId: data?.documentId,
+        // both ways works
+        // messages: [...(prev?.messages ?? []), ...filteredData.messages],
+        messages: [...(prev?.messages ?? []).concat(filteredData.messages)],
+      }));
+      setInputValue("");
+    } catch (error) {
+      console.log("error", error);
+      setIsLoading(false);
+    } finally {
+      setIsLoading(false);
+    }
   };
   return (
     <div className="flex h-full flex-col">
@@ -81,30 +161,29 @@ const ChatContent = ({ data }: { data: ShowChatDataProps[] }) => {
 
       {/* messages */}
       <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-4 py-5">
-        {isDocumentHasConversation ? (
+        {conversation?.messages?.length ? (
           <>
             {/* question */}
-            <div
-              className={`ml-auto w-fit max-w-[80%] rounded-[10px_10px_3px_10px] px-3.5 py-2 text-sm ${styles.primarySoftBgColor}`}
-            >
-              What is the notice period in the supplier agreement?
-            </div>
-
-            {/* answer */}
-            <div className="max-w-[85%] space-y-3">
-              <p className="text-[15px] leading-snug font-semibold">
-                Three months written notice, effective at the end of a calendar
-                quarter.
-              </p>
-
-              <p className="space-y-1.5 text-sm text-muted-foreground">
-                <span className="flex gap-2">
-                  <span className="mt-1.75 h-1 w-1 shrink-0 rounded-full bg-muted-foreground/60" />
-                  Notice given today would end the agreement on 31 December
-                  2026.
-                </span>
-              </p>
-            </div>
+            {conversation?.messages?.map((message) => {
+              return message?.role === "user" ? (
+                <div
+                  key={message?.id}
+                  className={`ml-auto w-fit max-w-[80%] rounded-[10px_10px_3px_10px] px-3.5 py-2 text-sm ${styles.primarySoftBgColor}`}
+                >
+                  {message?.content}
+                </div>
+              ) : (
+                <div key={message?.id} className="max-w-[85%] space-y-3">
+                  <p className="space-y-1.5 text-sm text-black font-normal">
+                    {message?.content
+                      .replace(/\[\d+\]/g, "") // remove [1], [2]
+                      .replace(/\s+([.,;:!?])/g, "$1") // "PostgreSQL ," → "PostgreSQL,"
+                      .replace(/([.,;:!?])+([.,;:!?])/g, "$2") // ",." → "."
+                      .trim()}
+                  </p>
+                </div>
+              );
+            })}
           </>
         ) : (
           <div className="flex h-full flex-col items-center justify-center px-6 text-center">
@@ -168,9 +247,9 @@ const ChatContent = ({ data }: { data: ShowChatDataProps[] }) => {
             type="submit"
             size="icon"
             className={`${styles.primaryBgColor} ${styles.primaryHoverBgColor}`}
-            disabled={!selectedDocument}
+            disabled={!selectedDocument || isLoading}
           >
-            <Send />
+            {isLoading ? <Loader2 className="animate-spin" /> : <Send />}
           </Button>
         </form>
       </div>

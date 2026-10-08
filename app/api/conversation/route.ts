@@ -50,11 +50,33 @@ export async function POST(request: NextRequest) {
       document.name,
     );
     return NextResponse.json(result, { status: 200 });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Error processing conversation:", error);
     return NextResponse.json(
       {
-        message: "An error occurred while processing the conversation.",
+        // id: error.id,
+        documentId: selectedDocumentId,
+        messages: [
+          {
+            id: undefined,
+            role: "user",
+            content: prompt,
+            pageNumber: undefined,
+          },
+          {
+            id: undefined,
+            role: "assistant",
+            content:
+              error instanceof Error
+                ? error.message
+                : "An error occurred while processing the conversation.",
+            pageNumber: undefined,
+          },
+        ],
+        message:
+          error instanceof Error
+            ? error.message
+            : "An error occurred while processing the conversation.",
       },
       { status: 500 },
     );
