@@ -1,76 +1,67 @@
-# DocuMind
+# Documind
 
-A team workspace for asking questions about your company's documents.
+Ask questions about your company's documents and get answers with the page they came from.
 
-A company uploads its contracts, policies and invoices. Anyone on the team can then ask a question in plain language — "What is the notice period in the supplier agreement?" — and get an answer written only from those documents, with a citation pointing to the page it came from.
+A company uploads its contracts, policies and invoices. Anyone on the team can then ask something like "What is the notice period in the supplier agreement?" and get an answer that comes only from those files, with a link to the page.
 
-## The problem it solves
+## Why it exists
 
-Company knowledge sits in PDFs nobody reads. Finding one clause means opening five files and scrolling, or asking a colleague who happens to remember.
+Company knowledge sits in PDFs that nobody reads. To find one sentence, you open five files and scroll, or you ask the colleague who remembers.
 
-A general chatbot doesn't help: it has never seen your contracts, and it will invent an answer that sounds right. DocuMind only answers from the files in the workspace, and shows the source, so the answer can be checked.
+A normal chatbot cannot help, because it has never seen your contracts. It will still give an answer, and the answer may be wrong. Documind only uses the files in the workspace, and it shows the source, so you can check it yourself.
 
-## What it does
+## What you can do with it
 
-**Upload documents.** PDF, Word and plain text, up to 50MB. The file goes into private storage; the app reads it, splits it into passages and indexes them for meaning-based search. Uploading the same file twice is detected and refused.
+**Upload documents.** PDF, Word and plain text files, up to 50MB. The file is saved in private storage. The app reads the text, cuts it into small passages and prepares them for search. If you upload the same file twice, the app tells you it is already there.
 
-**Ask questions.** A conversation belongs to one document. The question is matched against the indexed passages, and the most relevant ones are given to the model as the only source for the answer.
+**Ask questions.** Each chat is about one document. The app finds the passages that match your question and gives only those to the AI model.
 
-**Check the source.** Every answer carries numbered citations with the document name and page. If nothing relevant is found, the app says so instead of guessing.
+**Check the answer.** Every answer shows which document and which page it came from. If the document does not contain the answer, the app says so instead of inventing one.
 
-**Work as a team.** A workspace is created on sign-up; colleagues are invited into it with owner, admin or member roles. Documents belong to the workspace, chats stay private to the person who asked.
+**Work as a team.** You create a workspace when you sign up and invite your colleagues as owner, admin or member. Documents belong to the whole workspace; your chats stay private to you.
 
 ## How it works
 
 ```
-Upload                             Ask
-──────                             ───
-file ─► private storage (R2)       question ─► embedding
-  │                                              │
-  └─► extract text, page by page                 ▼
-      split into overlapping passages      vector search over the
-      create an embedding per passage ───► workspace's passages
-      store in Postgres (pgvector)               │
-                                                 ▼
-                                          passages + question ─► model
-                                                 │
-                                                 ▼
-                                          answer + citations
+When you upload                     When you ask
+───────────────                     ────────────
+file ─► private storage (R2)        question ─► numbers (embedding)
+  │                                               │
+  └─► read the text, page by page                 ▼
+      cut it into passages                 find the closest passages
+      turn each passage into numbers ────► in the database
+      save them in Postgres                       │
+                                                  ▼
+                                      passages + question ─► AI model
+                                                  │
+                                                  ▼
+                                      answer + page number
 ```
 
-An embedding is a list of numbers representing meaning, so "How much notice must I give?" matches a passage that says "either party may terminate with three months written notice", even though they share no words.
+**What "numbers" means here.** Every passage is turned into a list of numbers that describes its meaning. Passages with a similar meaning get similar numbers. So the question "How much notice must I give?" finds the sentence "either party may terminate with three months written notice", even though the two do not share a single word. That is why the search works better than searching for keywords.
 
-Processing runs **after** the upload response is sent, so the user can close the dialog and keep working. Progress (extracting → embedding → indexing → ready) is stored in the database and polled by the UI, so it survives a refresh or a different device.
+**Reading a document takes time**, so the app does it in the background. You can close the upload window and the work continues on the server. The progress (reading the text → preparing the search → ready) is saved in the database, so you still see the correct status after a refresh or on another computer.
 
-## Stack
+## Tech stack
 
-| Area | Choice |
-| --- | --- |
-| Framework | Next.js 16 (App Router), React 19, TypeScript |
-| UI | Tailwind v4, shadcn/ui on Base UI |
-| Database | Neon Postgres + pgvector, Drizzle ORM |
-| Auth | better-auth  |
-| Storage | Cloudflare R2, private bucket |
-| AI | Vercel AI SDK with OpenAI (`text-embedding-3-small`, 1536 dimensions) |
+| Area      | Choice                                               |
+| --------- | ---------------------------------------------------- |
+| Framework | Next.js 16 (App Router), React 19, TypeScript        |
+| UI        | Tailwind v4, shadcn/ui on Base UI                    |
+| Database  | Neon Postgres with pgvector, Drizzle ORM             |
+| Auth      | better-auth                                          |
+| Storage   | Cloudflare R2, private bucket                        |
+| AI        | Vercel AI SDK with OpenAI (`text-embedding-3-small`) |
 
-## Data model
+## Running it locally
 
-12 tables: four for authentication, three for teams (`organization`, `member`, `invitation`), five for the product (`documents`, `chunks`, `conversations`, `messages`, `message_citations`).
-
-- Every company-owned table carries `organization_id`, and every query filters by it. That is what keeps one company's documents away from another's.
-- `chunks.embedding` is `vector(1536)` with an HNSW index using cosine distance.
-- A conversation belongs to exactly one document and one user: documents are shared with the workspace, chats are not.
-- Citations store a copy of the document name and the quoted text, so old answers stay readable after a document is deleted.
-
-## Running locally
-
-Requirements: Node 20+, pnpm, a Neon database, a Cloudflare R2 bucket, an OpenAI API key.
+You need: Node 20+, pnpm, a Neon database, a Cloudflare R2 bucket and an OpenAI API key.
 
 ```bash
 pnpm install
 ```
 
-Create `.env`:
+Create a `.env` file:
 
 ```
 DATABASE_URL=postgres://...
@@ -85,9 +76,9 @@ R2_BUCKET=documind
 OPENAI_API_KEY=sk-...
 ```
 
-The R2 bucket needs a CORS rule allowing `PUT` and `GET` from `http://localhost:3000`.
+In the R2 bucket, allow `PUT` and `GET` from `http://localhost:3000` in the CORS settings. Without this, the browser cannot upload.
 
-Apply the schema (the first migration enables pgvector):
+Create the database tables (the first migration turns on pgvector):
 
 ```bash
 pnpm drizzle-kit migrate
@@ -103,25 +94,11 @@ pnpm dev
 
 ```
 app/
-  (auth)/            sign-in, sign-up
-  onboarding/        create workspace
+  (auth)/            sign in, sign up
+  onboarding/        create the workspace
   (dashboard)/       dashboard, documents, chats, settings
-  api/               auth, workspace, documents, document status, conversation
+  api/               auth, workspace, documents, status, conversation
 components/          navbar, sidebar, ui/ (shadcn)
 db/                  schema.ts, relations.ts, index.ts
 lib/                 auth, r2, embeddings, actions/
 ```
-
-## Design decisions
-
-**Teams are written by hand** rather than taken from an auth plugin. Organizations, members, invitations and the role checks are my own code, so every access rule is explicit and debuggable.
-
-**Files never touch the database.** Postgres holds metadata, passages and embeddings; R2 holds the originals in a private bucket. The storage key is built on the server (`orgs/{orgId}/documents/{...}`) so the browser can never choose where a file is written.
-
-**Processing is detached from the request.** It runs after the response as a single function that takes a document id, which means it can move to a job queue later without touching the rest of the app.
-
-**Chunking is a fixed window with overlap**, not a sentence-aware splitter. The clever version produced a 66,000-character passage on a document without punctuation and broke the embedding call; the simple one cannot, and the quality difference is small.
-
-**Page numbers travel with each passage.** Citations are the point of the product, so the extractor returns one entry per page and every passage remembers where it came from.
-
-**Scanned PDFs are rejected** with a clear message instead of being stored as unsearchable files. OCR is out of scope.
