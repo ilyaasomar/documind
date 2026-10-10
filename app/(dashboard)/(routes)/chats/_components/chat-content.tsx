@@ -10,9 +10,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Separator } from "@/components/ui/separator";
-import { ChevronDown, File, Loader2, Plus, Send } from "lucide-react";
-import React from "react";
+import { File, Loader2, Send } from "lucide-react";
+import { useEffect, useState } from "react";
 
 interface ShowChatDataProps {
   id: string;
@@ -34,30 +33,43 @@ interface ConversationMessages {
   }[];
 }
 
-const ChatContent = ({ data }: { data: ShowChatDataProps[] }) => {
-  const [isSidebarVisible, setIsSidebarVisible] = React.useState(false);
-  const [isDocumentHasConversation, setIsDocumentHasConversation] =
-    React.useState(false);
-  const [selectedDocument, setSelectedDocument] = React.useState<string | null>(
-    null,
-  );
-  const [conversation, setConversation] =
-    React.useState<ConversationMessages>();
-  const [inputValue, setInputValue] = React.useState("");
-  const [isLoading, setIsLoading] = React.useState(false);
+const ChatContent = ({
+  data,
+  activeDocumentId,
+  onSelect,
+  newConversation,
+  setNewConversation,
+}: {
+  data: ShowChatDataProps[];
+  activeDocumentId: string | null;
+  onSelect: (id: string | null) => void;
+  newConversation: boolean;
+  setNewConversation: (isNewConversation: boolean) => void;
+}) => {
+  const [isSidebarVisible, setIsSidebarVisible] = useState(false);
 
-  console.log("conversation", conversation);
+  const [conversation, setConversation] = useState<ConversationMessages>();
+  const [inputValue, setInputValue] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
   const items = data.map((doc) => ({ value: doc.id, label: doc.name }));
+  // this useEffect is works only when click on new conversation button
+  useEffect(() => {
+    if (newConversation) {
+      onSelect(null);
+      setConversation(undefined);
+      data = [];
+    }
+  }, [newConversation]);
 
   // when select a document go to db and get that document has conversation
-  React.useEffect(() => {
+  useEffect(() => {
+    if (!activeDocumentId) return;
     async function checkDocumentHasConversation() {
-      const response = await fetch(`/api/conversation/${selectedDocument}`, {
+      const response = await fetch(`/api/conversation/${activeDocumentId}`, {
         method: "GET",
       });
       const data = await response.json();
-      console.log("returned data", data.conversation);
       const filteredData = {
         id: data?.conversation?.id,
         documentId: data?.conversation?.documentId,
@@ -70,12 +82,10 @@ const ChatContent = ({ data }: { data: ShowChatDataProps[] }) => {
         })),
       };
 
-      console.log("conversationData", filteredData);
-      // setIsDocumentHasConversation(data.hasConversation);
       setConversation(filteredData);
     }
     checkDocumentHasConversation();
-  }, [selectedDocument]);
+  }, [activeDocumentId]);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -83,7 +93,7 @@ const ChatContent = ({ data }: { data: ShowChatDataProps[] }) => {
     try {
       const documentData = {
         inputValue: inputValue,
-        selectedDocument: selectedDocument,
+        selectedDocument: activeDocumentId,
       };
       const response = await fetch(`/api/conversation`, {
         method: "POST",
@@ -124,7 +134,6 @@ const ChatContent = ({ data }: { data: ShowChatDataProps[] }) => {
 
       console.log("conversationData", filteredData);
 
-      setIsDocumentHasConversation(data.hasConversation);
       setConversation((prev) => ({
         id: data?.id,
         documentId: data?.documentId,
@@ -149,9 +158,9 @@ const ChatContent = ({ data }: { data: ShowChatDataProps[] }) => {
         </Button>
 
         <h3 className="truncate text-sm font-medium">
-          {selectedDocument ? (
+          {activeDocumentId ? (
             <span className="text-foreground">
-              {items.find((item) => item.value === selectedDocument)?.label}
+              {items.find((item) => item.value === activeDocumentId)?.label}
             </span>
           ) : (
             <span className="text-muted-foreground">New conversation</span>
@@ -168,13 +177,13 @@ const ChatContent = ({ data }: { data: ShowChatDataProps[] }) => {
               return message?.role === "user" ? (
                 <div
                   key={message?.id}
-                  className={`ml-auto w-fit max-w-[80%] rounded-[10px_10px_3px_10px] px-3.5 py-2 text-sm ${styles.primarySoftBgColor}`}
+                  className={`ml-auto w-fit max-w-[80%] rounded-[10px_10px_3px_10px] px-3.5 py-2 text-sm ${styles.primarySoftBgColor} dark:bg-gray-600 dark:text-white`}
                 >
                   {message?.content}
                 </div>
               ) : (
                 <div key={message?.id} className="max-w-[85%] space-y-3">
-                  <p className="space-y-1.5 text-sm text-black font-normal">
+                  <p className="space-y-1.5 text-sm text-black font-normal dark:text-white">
                     {message?.content
                       .replace(/\[\d+\]/g, "") // remove [1], [2]
                       .replace(/\s+([.,;:!?])/g, "$1") // "PostgreSQL ," → "PostgreSQL,"
@@ -210,14 +219,19 @@ const ChatContent = ({ data }: { data: ShowChatDataProps[] }) => {
         <form className="flex items-center gap-2" onSubmit={handleSubmit}>
           <Select
             items={items}
-            onValueChange={(value) => setSelectedDocument(value as string)}
+            onValueChange={(value) => {
+              onSelect(value as string);
+              setNewConversation(false);
+            }}
+            value={activeDocumentId ?? ""}
           >
             <SelectTrigger className="h-10 w-48 max-w-[45%] min-w-0 shrink">
-              <SelectValue
-                placeholder={
-                  selectedDocument ? selectedDocument : "Select a document"
+              <SelectValue placeholder={"Select a document"}>
+                {(value) =>
+                  data.find((doc) => doc.id === value)?.name ??
+                  "Select a document"
                 }
-              />
+              </SelectValue>
             </SelectTrigger>
 
             <SelectContent
@@ -240,14 +254,14 @@ const ChatContent = ({ data }: { data: ShowChatDataProps[] }) => {
             className="h-10 min-w-0 flex-1 border-0 shadow-none focus-visible:ring-0"
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
-            disabled={!selectedDocument}
+            disabled={!activeDocumentId || isLoading}
           />
 
           <Button
             type="submit"
             size="icon"
-            className={`${styles.primaryBgColor} ${styles.primaryHoverBgColor}`}
-            disabled={!selectedDocument || isLoading}
+            className={`${styles.primaryBgColor} ${styles.primaryHoverBgColor} dark:${styles.primaryHoverBgColor} dark:${styles.primaryBgColor} dark:text-white cursor-pointer`}
+            disabled={!activeDocumentId || isLoading || !inputValue}
           >
             {isLoading ? <Loader2 className="animate-spin" /> : <Send />}
           </Button>

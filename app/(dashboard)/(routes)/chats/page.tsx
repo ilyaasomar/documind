@@ -35,6 +35,13 @@ const Chats = async () => {
     },
     // with: { uploader: true },
   });
+  const conversations = await db.query.conversations.findMany({
+    where: {
+      organizationId: membership.member.organizationId,
+      userId: membership.user.id,
+    },
+    with: { document: true },
+  });
 
   const formatDocumentsData = documentsData.map((doc) => ({
     id: doc.id,
@@ -45,7 +52,20 @@ const Chats = async () => {
     createdAt: doc.createdAt,
   }));
 
-  return <ShowChatData documentsData={formatDocumentsData} />;
+  const formatConversationsData = conversations.map((conversation) => ({
+    id: conversation.id,
+    title: conversation.title,
+    document_id: conversation.documentId,
+    document_name: conversation.document?.name,
+    document_type: conversation.document?.fileType,
+  }));
+
+  return (
+    <ShowChatData
+      documentsData={formatDocumentsData}
+      conversationsData={formatConversationsData}
+    />
+  );
 };
 
 export default Chats;
