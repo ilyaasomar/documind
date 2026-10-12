@@ -42,14 +42,18 @@ export async function POST(request: NextRequest) {
     const userId = membership.member.userId;
     const organizationId = membership.member.organizationId;
 
-    const result = await processConversation(
+    const { conversationId, result } = await processConversation(
       prompt,
       selectedDocumentId,
       userId,
       organizationId,
       document.name,
     );
-    return NextResponse.json(result, { status: 200 });
+
+    return result.toTextStreamResponse({
+      headers: { "x-conversation-id": conversationId },
+    });
+    // return NextResponse.json(result, { status: 200 });
   } catch (error: unknown) {
     console.error("Error processing conversation:", error);
     return NextResponse.json(

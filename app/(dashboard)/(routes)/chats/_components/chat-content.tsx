@@ -11,7 +11,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { File, Loader2, Send } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 interface ShowChatDataProps {
   id: string;
@@ -29,7 +29,7 @@ interface ConversationMessages {
     id: string;
     content: string;
     role: "user" | "assistant";
-    pageNumber: number;
+    pageNumber?: number;
   }[];
 }
 
@@ -51,7 +51,8 @@ const ChatContent = ({
   const [conversation, setConversation] = useState<ConversationMessages>();
   const [inputValue, setInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const items = data.map((doc) => ({ value: doc.id, label: doc.name }));
   // this useEffect is works only when click on new conversation button
   useEffect(() => {
@@ -61,6 +62,15 @@ const ChatContent = ({
       data = [];
     }
   }, [newConversation]);
+
+  const lastMessage =
+    conversation?.messages?.[conversation.messages.length - 1]?.content;
+  // this useEffect scrolls the the conversation all the way to the bottom
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollIntoView({ behavior: "auto" });
+    }
+  }, [lastMessage, activeDocumentId]);
 
   // when select a document go to db and get that document has conversation
   useEffect(() => {
@@ -87,68 +97,149 @@ const ChatContent = ({
     checkDocumentHasConversation();
   }, [activeDocumentId]);
 
+  // put text into the last message (the empty assistant one)
+  function replaceLastMessage(content: string) {
+    setConversation((prev) => {
+      if (!prev) return prev;
+
+      const lastIndex = prev.messages.length - 1;
+
+      const messages = prev.messages.map((message, index) =>
+        index === lastIndex ? { ...message, content } : message,
+      );
+
+      return { ...prev, messages };
+    });
+  }
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsLoading(true);
+
+    const question = inputValue;
+    setInputValue("");
+
+    // 1. show the question and an empty answer right away
+    setConversation((prev) => ({
+      id: prev?.id ?? "",
+      documentId: activeDocumentId ?? "",
+      messages: [
+        ...(prev?.messages ?? []),
+        {
+          id: "question-" + Date.now(),
+          role: "user",
+          content: question,
+          pageNumber: undefined,
+        },
+        {
+          id: "answer-" + Date.now(),
+          role: "assistant",
+          content: "",
+          pageNumber: undefined,
+        },
+      ],
+    }));
+
     try {
-      const documentData = {
-        inputValue: inputValue,
-        selectedDocument: activeDocumentId,
-      };
       const response = await fetch(`/api/conversation`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(documentData),
+        body: JSON.stringify({
+          inputValue: question,
+          selectedDocument: activeDocumentId,
+        }),
       });
-      const data = await response.json();
-      console.log("returned data", data);
-      console.log("response", response);
-      if (response.status === 400) {
-        setIsLoading(false);
-        setConversation((prev) => ({
-          id: prev?.id ?? "",
-          documentId: prev?.documentId ?? "",
-          messages: [
-            ...(prev?.messages ?? []).concat(
-              data.messages.map((m: any) => m.content),
-            ),
-          ],
-        }));
-        setInputValue("");
-        setIsLoading(false);
 
+      // 2. errors come back as JSON
+      if (!response.ok) {
+        const data = await response.json();
+        replaceLastMessage(data.message);
         return;
       }
-      const filteredData = {
-        id: data?.id,
-        documentId: data?.documentId,
-        messages: data?.messages?.map(
-          (message: ConversationMessages["messages"][number]) => ({
-            id: message.id,
-            content: message.content,
-            role: message.role,
-            pageNumber: message.pageNumber,
-          }),
-        ),
-      };
 
-      console.log("conversationData", filteredData);
+      // 3. fill the empty answer while the text arrives
+      const reader = response.body!.getReader();
+      const decoder = new TextDecoder();
+      let answer = "";
 
-      setConversation((prev) => ({
-        id: data?.id,
-        documentId: data?.documentId,
-        // both ways works
-        // messages: [...(prev?.messages ?? []), ...filteredData.messages],
-        messages: [...(prev?.messages ?? []).concat(filteredData.messages)],
-      }));
-      setInputValue("");
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        answer = answer + decoder.decode(value);
+        replaceLastMessage(answer);
+      }
+
+      inputRef.current?.focus();
     } catch (error) {
       console.log("error", error);
-      setIsLoading(false);
+      replaceLastMessage("Something went wrong. Please try again.");
     } finally {
       setIsLoading(false);
     }
   };
+  // const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  //   e.preventDefault();
+  //   setIsLoading(true);
+  //   try {
+  //     const documentData = {
+  //       inputValue: inputValue,
+  //       selectedDocument: activeDocumentId,
+  //     };
+  //     const response = await fetch(`/api/conversation`, {
+  //       method: "POST",
+  //       headers: { "Content-Type": "application/json" },
+  //       body: JSON.stringify(documentData),
+  //     });
+  //     const data = await response.json();
+  //     console.log("returned data", data);
+  //     console.log("response", response);
+  //     if (response.status === 400) {
+  //       setIsLoading(false);
+  //       setConversation((prev) => ({
+  //         id: prev?.id ?? "",
+  //         documentId: prev?.documentId ?? "",
+  //         messages: [
+  //           ...(prev?.messages ?? []).concat(
+  //             data.messages.map((m: any) => m.content),
+  //           ),
+  //         ],
+  //       }));
+  //       setInputValue("");
+  //       setIsLoading(false);
+
+  //       return;
+  //     }
+  //     const filteredData = {
+  //       id: data?.id,
+  //       documentId: data?.documentId,
+  //       messages: data?.messages?.map(
+  //         (message: ConversationMessages["messages"][number]) => ({
+  //           id: message.id,
+  //           content: message.content,
+  //           role: message.role,
+  //           pageNumber: message.pageNumber,
+  //         }),
+  //       ),
+  //     };
+
+  //     setConversation((prev) => ({
+  //       id: data?.id,
+  //       documentId: data?.documentId,
+  //       // both ways works
+  //       // messages: [...(prev?.messages ?? []), ...filteredData.messages],
+  //       messages: [...(prev?.messages ?? []).concat(filteredData.messages)],
+  //     }));
+  //     setInputValue("");
+  //     inputRef.current?.focus();
+  //     setIsLoading(false);
+  //   } catch (error) {
+  //     console.log("error", error);
+  //     setIsLoading(false);
+  //   } finally {
+  //     setIsLoading(false);
+  //   }
+  // };
   return (
     <div className="flex h-full flex-col">
       {/* header */}
@@ -184,11 +275,21 @@ const ChatContent = ({
               ) : (
                 <div key={message?.id} className="max-w-[85%] space-y-3">
                   <p className="space-y-1.5 text-sm text-black font-normal dark:text-white">
-                    {message?.content
-                      .replace(/\[\d+\]/g, "") // remove [1], [2]
-                      .replace(/\s+([.,;:!?])/g, "$1") // "PostgreSQL ," → "PostgreSQL,"
-                      .replace(/([.,;:!?])+([.,;:!?])/g, "$2") // ",." → "."
-                      .trim()}
+                    {message.role === "assistant" && message.content === "" ? (
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Thinking…
+                      </div>
+                    ) : (
+                      <p className="text-sm">
+                        {" "}
+                        {message?.content
+                          .replace(/\[\d+\]/g, "") // remove [1], [2]
+                          .replace(/\s+([.,;:!?])/g, "$1") // "PostgreSQL ," → "PostgreSQL,"
+                          .replace(/([.,;:!?])+([.,;:!?])/g, "$2") // ",." → "."
+                          .trim()}
+                      </p>
+                    )}
                   </p>
                 </div>
               );
@@ -212,6 +313,7 @@ const ChatContent = ({
             </p>
           </div>
         )}
+        <div ref={scrollRef} />
       </div>
 
       {/* input bar */}
@@ -253,6 +355,7 @@ const ChatContent = ({
             placeholder="Type your question"
             className="h-10 min-w-0 flex-1 border-0 shadow-none focus-visible:ring-0"
             value={inputValue}
+            ref={inputRef}
             onChange={(e) => setInputValue(e.target.value)}
             disabled={!activeDocumentId || isLoading}
           />

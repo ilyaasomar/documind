@@ -3,9 +3,9 @@ import { db } from "@/db";
 import { chunks, conversations, messageCitations, messages } from "@/db/schema";
 import { generateEmbedding } from "./embeddings";
 import { and, cosineDistance, desc, eq, sql } from "drizzle-orm";
-import { NextResponse } from "next/server";
 
 import { generateText } from "ai";
+import { streamText } from "ai";
 import { openai } from "@ai-sdk/openai";
 
 export async function processConversation(
@@ -115,69 +115,110 @@ export async function processConversation(
     });
     throw new Error("No matching passages found. Try again.");
   } else {
-    const { text } = await generateText({
+    // stream the answer instead of waiting for the full text
+    const result = streamText({
       model: openai("gpt-4o-mini"),
       system: [
         "You answer questions about one document.",
         "Use only the passages provided. Never use outside knowledge.",
         "If the passages do not contain the answer, say so plainly.",
         "Start with a one-sentence answer, then details if needed.",
-        "Reference passages as [1], [2] where they support a statement.",
       ].join(" "),
       prompt: `Passage:\n\n${context}\n\nQuestion: ${prompt}`,
+
+      // runs on the server when the answer is complete
+      onFinish: async ({ text }) => {
+        const [assistantMessage] = await db
+          .insert(messages)
+          .values({
+            conversationId,
+            role: "assistant",
+            content: text,
+            model: "gpt-4o-mini",
+          })
+          .returning();
+
+        await db.insert(messageCitations).values(
+          matches.map((match, i) => ({
+            messageId: assistantMessage.id,
+            number: i + 1,
+            chunkId: match.id,
+            documentId: selectedDocumentId,
+            documentName: document_name,
+            quote: match.content.slice(0, 500),
+            pageNumber: match.pageNumber,
+            score: match.similarity,
+          })),
+        );
+      },
     });
 
-    // now save the answer
-    const [assistantMessage] = await db
-      .insert(messages)
-      .values({
-        conversationId,
-        role: "assistant",
-        content: text,
-        model: "gpt-4o-mini",
-      })
-      .returning();
-
-    const savedCitations = await db
-      .insert(messageCitations)
-      .values(
-        matches.map((match, i) => ({
-          messageId: assistantMessage.id,
-          number: i + 1,
-          chunkId: match.id,
-          documentId: selectedDocumentId,
-          documentName: document_name,
-          quote: match.content.slice(0, 500),
-          pageNumber: match.pageNumber,
-          score: match.similarity,
-        })),
-      )
-      .returning();
-    console.log("assistantMessage", assistantMessage);
-    return {
-      id: conversationId,
-      documentId: selectedDocumentId,
-      messages: [
-        {
-          id: savedQuestion.id,
-          role: "user",
-          content: prompt,
-          pageNumber: undefined,
-        },
-        {
-          id: assistantMessage.id,
-          role: "assistant",
-          content: text,
-          pageNumber: savedCitations.filter((c) => c.number === 1)[0]
-            ?.pageNumber,
-        },
-      ],
-      citation: savedCitations.map((c) => ({
-        number: c.number,
-        documentName: c.documentName,
-        pageNumber: c.pageNumber,
-        quote: c.quote,
-      })),
-    };
+    return { conversationId, result };
   }
+
+  // else {
+  //   const { text } = await generateText({
+  //     model: openai("gpt-4o-mini"),
+  //     system: [
+  //       "You answer questions about one document.",
+  //       "Use only the passages provided. Never use outside knowledge.",
+  //       "If the passages do not contain the answer, say so plainly.",
+  //       "Start with a one-sentence answer, then details if needed.",
+  //     ].join(" "),
+  //     prompt: `Passage:\n\n${context}\n\nQuestion: ${prompt}`,
+  //   });
+
+  //   // now save the answer
+  //   const [assistantMessage] = await db
+  //     .insert(messages)
+  //     .values({
+  //       conversationId,
+  //       role: "assistant",
+  //       content: text,
+  //       model: "gpt-4o-mini",
+  //     })
+  //     .returning();
+
+  //   const savedCitations = await db
+  //     .insert(messageCitations)
+  //     .values(
+  //       matches.map((match, i) => ({
+  //         messageId: assistantMessage.id,
+  //         number: i + 1,
+  //         chunkId: match.id,
+  //         documentId: selectedDocumentId,
+  //         documentName: document_name,
+  //         quote: match.content.slice(0, 500),
+  //         pageNumber: match.pageNumber,
+  //         score: match.similarity,
+  //       })),
+  //     )
+  //     .returning();
+  //   console.log("assistantMessage", assistantMessage);
+  //   return {
+  //     id: conversationId,
+  //     documentId: selectedDocumentId,
+  //     messages: [
+  //       {
+  //         id: savedQuestion.id,
+  //         role: "user",
+  //         content: prompt,
+  //         pageNumber: undefined,
+  //       },
+  //       {
+  //         id: assistantMessage.id,
+  //         role: "assistant",
+  //         content: text,
+  //         pageNumber: savedCitations.filter((c) => c.number === 1)[0]
+  //           ?.pageNumber,
+  //       },
+  //     ],
+  //     citation: savedCitations.map((c) => ({
+  //       number: c.number,
+  //       documentName: c.documentName,
+  //       pageNumber: c.pageNumber,
+  //       quote: c.quote,
+  //     })),
+  //   };
+  // }
 }
