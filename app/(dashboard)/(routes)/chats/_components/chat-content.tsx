@@ -118,7 +118,6 @@ const ChatContent = ({
 
     const question = inputValue;
     setInputValue("");
-
     // 1. show the question and an empty answer right away
     setConversation((prev) => ({
       id: prev?.id ?? "",
@@ -178,68 +177,6 @@ const ChatContent = ({
       setIsLoading(false);
     }
   };
-  // const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-  //   e.preventDefault();
-  //   setIsLoading(true);
-  //   try {
-  //     const documentData = {
-  //       inputValue: inputValue,
-  //       selectedDocument: activeDocumentId,
-  //     };
-  //     const response = await fetch(`/api/conversation`, {
-  //       method: "POST",
-  //       headers: { "Content-Type": "application/json" },
-  //       body: JSON.stringify(documentData),
-  //     });
-  //     const data = await response.json();
-  //     console.log("returned data", data);
-  //     console.log("response", response);
-  //     if (response.status === 400) {
-  //       setIsLoading(false);
-  //       setConversation((prev) => ({
-  //         id: prev?.id ?? "",
-  //         documentId: prev?.documentId ?? "",
-  //         messages: [
-  //           ...(prev?.messages ?? []).concat(
-  //             data.messages.map((m: any) => m.content),
-  //           ),
-  //         ],
-  //       }));
-  //       setInputValue("");
-  //       setIsLoading(false);
-
-  //       return;
-  //     }
-  //     const filteredData = {
-  //       id: data?.id,
-  //       documentId: data?.documentId,
-  //       messages: data?.messages?.map(
-  //         (message: ConversationMessages["messages"][number]) => ({
-  //           id: message.id,
-  //           content: message.content,
-  //           role: message.role,
-  //           pageNumber: message.pageNumber,
-  //         }),
-  //       ),
-  //     };
-
-  //     setConversation((prev) => ({
-  //       id: data?.id,
-  //       documentId: data?.documentId,
-  //       // both ways works
-  //       // messages: [...(prev?.messages ?? []), ...filteredData.messages],
-  //       messages: [...(prev?.messages ?? []).concat(filteredData.messages)],
-  //     }));
-  //     setInputValue("");
-  //     inputRef.current?.focus();
-  //     setIsLoading(false);
-  //   } catch (error) {
-  //     console.log("error", error);
-  //     setIsLoading(false);
-  //   } finally {
-  //     setIsLoading(false);
-  //   }
-  // };
   return (
     <div className="flex h-full flex-col">
       {/* header */}

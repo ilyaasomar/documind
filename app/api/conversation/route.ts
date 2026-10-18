@@ -53,7 +53,6 @@ export async function POST(request: NextRequest) {
     return result.toTextStreamResponse({
       headers: { "x-conversation-id": conversationId },
     });
-    // return NextResponse.json(result, { status: 200 });
   } catch (error: unknown) {
     console.error("Error processing conversation:", error);
     return NextResponse.json(

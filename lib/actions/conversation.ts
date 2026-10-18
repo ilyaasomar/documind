@@ -15,13 +15,6 @@ export async function processConversation(
   organizationId: string,
   document_name: string,
 ) {
-  console.log("data in processConversation", {
-    prompt,
-    selectedDocumentId,
-    userId,
-    organizationId,
-  });
-
   //   check if conversation already exist for this document and this user
   const existingConversation = await db.query.conversations.findFirst({
     where: {
