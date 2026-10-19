@@ -4,7 +4,6 @@ import { chunks, conversations, messageCitations, messages } from "@/db/schema";
 import { generateEmbedding } from "./embeddings";
 import { and, cosineDistance, desc, eq, sql } from "drizzle-orm";
 
-import { generateText } from "ai";
 import { streamText } from "ai";
 import { openai } from "@ai-sdk/openai";
 
@@ -36,7 +35,7 @@ export async function processConversation(
         documentId: selectedDocumentId,
         userId,
         organizationId,
-        title: prompt.slice(0, 60),
+        title: document_name, // instead of storing first question store the book name as title
       })
       .returning();
 
@@ -99,7 +98,7 @@ export async function processConversation(
   console.log("context in processConversation", context);
 
   // check wether the match matches or not
-  if (matches.length === 0 || matches[0].similarity < 0.3) {
+  if (matches.length === 0 || matches[0].similarity < 0.15) {
     await db.insert(messages).values({
       conversationId,
       role: "assistant",
@@ -108,13 +107,15 @@ export async function processConversation(
     });
     throw new Error("No matching passages found. Try again.");
   } else {
+    console.log("matches in processConversation", matches);
     // stream the answer instead of waiting for the full text
     const result = streamText({
       model: openai("gpt-4o-mini"),
       system: [
         "You answer questions about one document.",
         "Use only the passages provided. Never use outside knowledge.",
-        "If the passages do not contain the answer, say so plainly.",
+        "If the passages do not contain the answer, reply exactly: I could not find this in this document.",
+        "Never guess. Never use what you know about the world.",
         "Start with a one-sentence answer, then details if needed.",
       ].join(" "),
       prompt: `Passage:\n\n${context}\n\nQuestion: ${prompt}`,
@@ -148,70 +149,4 @@ export async function processConversation(
 
     return { conversationId, result };
   }
-
-  // else {
-  //   const { text } = await generateText({
-  //     model: openai("gpt-4o-mini"),
-  //     system: [
-  //       "You answer questions about one document.",
-  //       "Use only the passages provided. Never use outside knowledge.",
-  //       "If the passages do not contain the answer, say so plainly.",
-  //       "Start with a one-sentence answer, then details if needed.",
-  //     ].join(" "),
-  //     prompt: `Passage:\n\n${context}\n\nQuestion: ${prompt}`,
-  //   });
-
-  //   // now save the answer
-  //   const [assistantMessage] = await db
-  //     .insert(messages)
-  //     .values({
-  //       conversationId,
-  //       role: "assistant",
-  //       content: text,
-  //       model: "gpt-4o-mini",
-  //     })
-  //     .returning();
-
-  //   const savedCitations = await db
-  //     .insert(messageCitations)
-  //     .values(
-  //       matches.map((match, i) => ({
-  //         messageId: assistantMessage.id,
-  //         number: i + 1,
-  //         chunkId: match.id,
-  //         documentId: selectedDocumentId,
-  //         documentName: document_name,
-  //         quote: match.content.slice(0, 500),
-  //         pageNumber: match.pageNumber,
-  //         score: match.similarity,
-  //       })),
-  //     )
-  //     .returning();
-  //   console.log("assistantMessage", assistantMessage);
-  //   return {
-  //     id: conversationId,
-  //     documentId: selectedDocumentId,
-  //     messages: [
-  //       {
-  //         id: savedQuestion.id,
-  //         role: "user",
-  //         content: prompt,
-  //         pageNumber: undefined,
-  //       },
-  //       {
-  //         id: assistantMessage.id,
-  //         role: "assistant",
-  //         content: text,
-  //         pageNumber: savedCitations.filter((c) => c.number === 1)[0]
-  //           ?.pageNumber,
-  //       },
-  //     ],
-  //     citation: savedCitations.map((c) => ({
-  //       number: c.number,
-  //       documentName: c.documentName,
-  //       pageNumber: c.pageNumber,
-  //       quote: c.quote,
-  //     })),
-  //   };
-  // }
 }

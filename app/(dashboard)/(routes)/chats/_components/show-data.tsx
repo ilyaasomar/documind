@@ -2,6 +2,7 @@
 import React from "react";
 import ChatSidebar from "./chat-sidebar";
 import ChatContent from "./chat-content";
+import ChatActions from "./actions";
 interface ShowChatDataProps {
   id: string;
   name: string;

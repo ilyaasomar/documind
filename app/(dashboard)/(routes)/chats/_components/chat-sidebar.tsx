@@ -2,6 +2,10 @@ import { styles } from "@/app/styles";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Plus } from "lucide-react";
+
+import { MoreHorizontal } from "lucide-react";
+import ChatActions from "./actions";
+
 interface ChatSidebarProps {
   data: {
     id: string;
@@ -38,17 +42,20 @@ const ChatSidebar = ({
         {/* list of conversations */}
         <div className="flex flex-col space-y-2">
           {data.map((conversation) => (
-            <li key={conversation.id} className="w-full">
+            <li
+              key={conversation.id}
+              className={`w-full flex items-center rounded-md px-3 py-2 ${
+                conversation.document_id === activeId
+                  ? `${styles.primarySoftBgColor} ${styles.primaryTextColor} font-medium dark:bg-gray-600 dark:text-white `
+                  : "hover:bg-muted"
+              }`}
+            >
               <button
                 onClick={() => {
                   onSelect(conversation.document_id);
                   setNewConversation(false);
                 }}
-                className={`w-full rounded-md px-3 py-2 text-left text-sm cursor-pointer ${
-                  conversation.document_id === activeId
-                    ? `${styles.primarySoftBgColor} ${styles.primaryTextColor} font-medium dark:bg-gray-600 dark:text-white `
-                    : "hover:bg-muted"
-                }`}
+                className={`w-full rounded-md text-left text-sm cursor-pointer`}
               >
                 {/* file type icon */}
                 <div className="flex items-center gap-1 w-full">
@@ -60,7 +67,12 @@ const ChatSidebar = ({
                     {conversation.title}
                   </span>
                 </div>
+
+                {/* action button: delete and rename */}
               </button>
+              <div className="ml-auto">
+                <ChatActions conversationId={conversation.id} />
+              </div>
             </li>
           ))}
         </div>
