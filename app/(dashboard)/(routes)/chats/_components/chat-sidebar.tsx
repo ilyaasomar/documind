@@ -17,12 +17,14 @@ interface ChatSidebarProps {
   activeId: string | null;
   onSelect: (id: string | null) => void;
   setNewConversation: (isNewConversation: boolean) => void;
+  onDelete: (id: string) => void;
 }
 const ChatSidebar = ({
   data,
   activeId,
   onSelect,
   setNewConversation,
+  onDelete,
 }: ChatSidebarProps) => {
   return (
     <div className="h-full overflow-y-auto p-2">
@@ -40,29 +42,27 @@ const ChatSidebar = ({
         </Button>
         <Separator className="" />
         {/* list of conversations */}
-        <div className="flex flex-col space-y-2">
+        <div className="flex flex-col space-y-1 cursor-pointer">
           {data.map((conversation) => (
             <li
               key={conversation.id}
+              onClick={() => {
+                onSelect(conversation.document_id);
+                setNewConversation(false);
+              }}
               className={`w-full flex items-center rounded-md px-3 py-2 ${
                 conversation.document_id === activeId
                   ? `${styles.primarySoftBgColor} ${styles.primaryTextColor} font-medium dark:bg-gray-600 dark:text-white `
                   : "hover:bg-muted"
               }`}
             >
-              <button
-                onClick={() => {
-                  onSelect(conversation.document_id);
-                  setNewConversation(false);
-                }}
-                className={`w-full rounded-md text-left text-sm cursor-pointer`}
-              >
+              <button className={`w-full rounded-md text-left text-sm`}>
                 {/* file type icon */}
                 <div className="flex items-center gap-1 w-full">
-                  <span className="text-xs font-normal text-muted-foreground dark:text-white">
+                  {/* <span className="text-xs font-normal text-muted-foreground dark:text-white">
                     {conversation.document_type?.toUpperCase()}
                   </span>
-                  <div className="h-2 bg-blue-400 w-0.5"></div>
+                  <div className="h-2 bg-blue-400 w-0.5"></div> */}
                   <span className="text-xs font-normal text-foreground">
                     {conversation.title}
                   </span>
@@ -71,7 +71,10 @@ const ChatSidebar = ({
                 {/* action button: delete and rename */}
               </button>
               <div className="ml-auto">
-                <ChatActions conversationId={conversation.id} />
+                <ChatActions
+                  conversationId={conversation.id}
+                  onDelete={onDelete}
+                />
               </div>
             </li>
           ))}

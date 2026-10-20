@@ -9,6 +9,7 @@ export const auth = betterAuth({
     schema,
   }),
 
+  trustedOrigins: ["http://172.20.10.2:3000"],
   emailAndPassword: {
     enabled: true,
   },

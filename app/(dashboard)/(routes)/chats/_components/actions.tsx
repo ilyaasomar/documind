@@ -14,21 +14,54 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useState } from "react";
 import DeleteDialog from "@/components/delete-dialog";
+import { useRouter } from "next/navigation";
+import { toast } from "@/components/ui/toast";
 
-const ChatActions = ({ conversationId }: { conversationId: string }) => {
+const ChatActions = ({
+  conversationId,
+  onDelete,
+}: {
+  conversationId: string;
+  onDelete: (id: string) => void;
+}) => {
   //   console.log("action open", actionOpen);
   const [open, setOpen] = useState(false);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
-  console.log("selected conversation id", conversationId);
+  const [loading, setLoading] = useState(false);
+  const router = useRouter();
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     console.log("delete");
-    console.log("deletingId", deletingId);
+    console.log("deletingId", conversationId);
+    setLoading(true);
+    try {
+      const response = await fetch(`/api/conversation/${conversationId}`, {
+        method: "DELETE",
+      });
+      const data = await response.json();
+      if (data) {
+        onDelete(data.documentId);
+        router.refresh();
+        toast.add({
+          type: "success",
+          description: data.message,
+        });
+      }
+    } catch (error) {
+      console.log("error", error);
+      setLoading(false);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <div>
-      <DeleteDialog open={open} setOpen={setOpen} onConfirm={handleDelete} />
+      <DeleteDialog
+        open={open}
+        setOpen={setOpen}
+        onConfirm={handleDelete}
+        loading={loading}
+      />
       <DropdownMenu>
         <DropdownMenuTrigger
           render={<Button variant="ghost" className="h-8 w-8 p-0" />}
@@ -42,10 +75,7 @@ const ChatActions = ({ conversationId }: { conversationId: string }) => {
             <DropdownMenuItem>Rename</DropdownMenuItem>
             <DropdownMenuItem
               variant="destructive"
-              onClick={() => {
-                setOpen(true);
-                setDeletingId(conversationId);
-              }}
+              onClick={() => setOpen(true)}
             >
               Delete
             </DropdownMenuItem>

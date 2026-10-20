@@ -31,19 +31,31 @@ const ShowChatData = ({
     null,
   );
   const [newConversation, setNewConversation] = React.useState(false);
+  const [hideSidebar, setHideSidebar] = React.useState(false);
 
+  // it turns empty when the conversation delete
+  function onDelete(documentId: string) {
+    if (activeDocumentId === documentId) {
+      setNewConversation(true);
+    }
+  }
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-muted/40 sm:p-2">
       <div className="mt-4 min-h-0 flex-1 sm:px-2">
-        <div className="grid h-full min-h-0 grid-cols-1 gap-4 md:grid-cols-4">
-          <div className="min-h-0 overflow-hidden rounded-lg bg-card md:col-span-1">
-            <ChatSidebar
-              data={conversationsData}
-              activeId={activeDocumentId}
-              setNewConversation={setNewConversation}
-              onSelect={setActiveDocumentId}
-            />
-          </div>
+        <div
+          className={`grid h-full min-h-0 grid-cols-1 gap-4 ${hideSidebar ? "md:grid-cols-1" : "md:grid-cols-4"} `}
+        >
+          {!hideSidebar && (
+            <div className="min-h-0 overflow-hidden rounded-lg bg-card md:col-span-1">
+              <ChatSidebar
+                data={conversationsData}
+                activeId={activeDocumentId}
+                setNewConversation={setNewConversation}
+                onSelect={setActiveDocumentId}
+                onDelete={onDelete}
+              />
+            </div>
+          )}
           <div className="min-h-0 overflow-hidden rounded-lg bg-card md:col-span-3">
             <ChatContent
               data={documentsData}
@@ -51,6 +63,8 @@ const ShowChatData = ({
               onSelect={setActiveDocumentId}
               newConversation={newConversation}
               setNewConversation={setNewConversation}
+              setHideSidebar={setHideSidebar}
+              hideSidebar={hideSidebar}
             />
           </div>
         </div>

@@ -2,6 +2,7 @@
 import { styles } from "@/app/styles";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import Markdown from "react-markdown";
 import {
   Select,
   SelectContent,
@@ -10,7 +11,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { File, Loader2, Send } from "lucide-react";
+import { router } from "better-auth/api";
+import { ArrowLeft, ArrowRight, File, Loader2, Send } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 interface ShowChatDataProps {
@@ -39,12 +42,16 @@ const ChatContent = ({
   onSelect,
   newConversation,
   setNewConversation,
+  hideSidebar,
+  setHideSidebar,
 }: {
   data: ShowChatDataProps[];
   activeDocumentId: string | null;
   onSelect: (id: string | null) => void;
   newConversation: boolean;
   setNewConversation: (isNewConversation: boolean) => void;
+  hideSidebar: boolean;
+  setHideSidebar: (hideSidebar: boolean) => void;
 }) => {
   const [isSidebarVisible, setIsSidebarVisible] = useState(false);
 
@@ -53,6 +60,9 @@ const ChatContent = ({
   const [isLoading, setIsLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const router = useRouter();
+
   const items = data.map((doc) => ({ value: doc.id, label: doc.name }));
   // this useEffect is works only when click on new conversation button
   useEffect(() => {
@@ -170,6 +180,7 @@ const ChatContent = ({
       }
 
       inputRef.current?.focus();
+      router.refresh();
     } catch (error) {
       console.log("error", error);
       replaceLastMessage("Something went wrong. Please try again.");
@@ -181,8 +192,22 @@ const ChatContent = ({
     <div className="flex h-full flex-col">
       {/* header */}
       <div className="flex items-center gap-2 border-b px-4 py-3 shrink-0 bg-card">
-        <Button variant="outline" size="sm">
-          Hide history
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setHideSidebar(!hideSidebar)}
+        >
+          {hideSidebar ? (
+            <>
+              <ArrowRight className="mr-2 h-4 w-4" />
+              Show chat
+            </>
+          ) : (
+            <>
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Hide chat
+            </>
+          )}
         </Button>
 
         <h3 className="truncate text-sm font-medium">
@@ -220,11 +245,16 @@ const ChatContent = ({
                     ) : (
                       <p className="text-sm">
                         {" "}
-                        {message?.content
+                        {/* without markdown */}
+                        {/* {message?.content
                           .replace(/\[\d+\]/g, "") // remove [1], [2]
                           .replace(/\s+([.,;:!?])/g, "$1") // "PostgreSQL ," → "PostgreSQL,"
                           .replace(/([.,;:!?])+([.,;:!?])/g, "$2") // ",." → "."
-                          .trim()}
+                          .trim()} */}
+                        {/* with markdown */}
+                        <Markdown>
+                          {message.content.replace(/\[\d+\]/g, "").trim()}
+                        </Markdown>
                       </p>
                     )}
                   </p>

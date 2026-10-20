@@ -10,14 +10,17 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Loader2 } from "lucide-react";
 const DeleteDialog = ({
   open,
   setOpen,
   onConfirm,
+  loading,
 }: {
   open: boolean;
   setOpen: (open: boolean) => void;
   onConfirm: () => void;
+  loading?: boolean;
 }) => {
   return (
     <AlertDialog open={open} onOpenChange={setOpen}>
@@ -33,14 +36,23 @@ const DeleteDialog = ({
           <AlertDialogCancel
             className="cursor-pointer"
             onClick={() => setOpen(false)}
+            disabled={loading}
           >
             Cancel
           </AlertDialogCancel>
           <AlertDialogAction
             className="bg-red-600 hover:bg-red-600 cursor-pointer"
             onClick={onConfirm}
+            disabled={loading}
           >
-            Delete
+            {loading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Deleting
+              </>
+            ) : (
+              "Delete"
+            )}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
