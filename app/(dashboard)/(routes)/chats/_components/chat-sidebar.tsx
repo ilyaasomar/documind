@@ -50,13 +50,13 @@ const ChatSidebar = ({
                 onSelect(conversation.document_id);
                 setNewConversation(false);
               }}
-              className={`w-full flex items-center rounded-md px-3 py-2 ${
+              className={`w-full flex items-center rounded-md px-3 py-2 cursor-pointer ${
                 conversation.document_id === activeId
                   ? `${styles.primarySoftBgColor} ${styles.primaryTextColor} font-medium dark:bg-gray-600 dark:text-white `
                   : "hover:bg-muted"
               }`}
             >
-              <button className={`w-full rounded-md text-left text-sm`}>
+              <button className={`w-full rounded-md text-left text-sm cursor-pointer`}>
                 {/* file type icon */}
                 <div className="flex items-center gap-1 w-full">
                   {/* <span className="text-xs font-normal text-muted-foreground dark:text-white">

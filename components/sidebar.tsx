@@ -25,7 +25,6 @@ import { ChevronUp, LogOut, User, User2 } from "lucide-react";
 import { signOut, useSession } from "@/lib/auth-client";
 import { useRouter } from "next/navigation";
 
-
 const ACTIVE_CLASSES = `bg-primary dark:bg-[#1d4f9c] text-white hover:bg-primary hover:text-white rounded-sm focus:bg-primary focus:text-white active:bg-primary active:text-white data-[state=open]:bg-primary data-[state=open]:text-white`;
 export function AppSidebar() {
   const session = useSession();
@@ -57,7 +56,7 @@ export function AppSidebar() {
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>
-      <SidebarSeparator />
+      <SidebarSeparator className="-my-px" />
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupContent>

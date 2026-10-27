@@ -72,7 +72,6 @@ export async function DELETE(
   context: { params: Promise<{ id: string }> },
 ) {
   const { id } = await context.params;
-  console.log("deletingId", id);
   const membership = await getMembership();
   if (!membership) {
     return NextResponse.json(

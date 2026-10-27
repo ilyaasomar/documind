@@ -64,9 +64,9 @@ export const columns = columnHelper.columns([
   }),
 
   // call action buttons here
-  columnHelper.display({
+  columnHelper.group({
     id: "actions",
     header: "Actions",
-    cell: ({ row }) => <DocumentActions />,
+    cell: ({ row }) => <DocumentActions id={row.original.id} />,
   }),
 ]);

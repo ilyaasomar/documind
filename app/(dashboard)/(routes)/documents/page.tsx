@@ -66,7 +66,6 @@ const Documents = async () => {
       createdAt: formattedDateTime,
     };
   });
-  console.log("formattedDocuments", formattedDocuments);
   return <ShowDocumentData data={formattedDocuments} />;
 };
 

@@ -14,12 +14,7 @@ import {
 
 // enums
 // -----------------------------------------------------------------
-export const fileTypeEnum = pgEnum("file_type", [
-  "pdf",
-  "docx",
-  "xlsx",
-  "txt",
-]);
+export const fileTypeEnum = pgEnum("file_type", ["pdf", "docx", "xlsx", "txt"]);
 export const documentStatusEnum = pgEnum("document_status", [
   "uploading",
   "processing",
@@ -299,10 +294,10 @@ export const messageCitations = pgTable(
       .references(() => messages.id, { onDelete: "cascade" }),
     number: integer("number").notNull(),
     documentId: uuid("document_id").references(() => documents.id, {
-      onDelete: "set null",
+      onDelete: "cascade",
     }),
     chunkId: uuid("chunk_id").references(() => chunks.id, {
-      onDelete: "set null",
+      onDelete: "cascade",
     }),
     documentName: text("document_name").notNull(),
     quote: text("quote").notNull(),
