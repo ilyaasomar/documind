@@ -3,6 +3,7 @@ import { db } from "@/db";
 import { member, organization } from "@/db/schema";
 import { getUser } from "@/lib/actions/get-user";
 import { eq } from "drizzle-orm";
+import DashboardPage from "./_dashboard/page";
 
 export default async function Home() {
   const user = await getUser();
@@ -15,12 +16,12 @@ export default async function Home() {
   const organization_name = organizations.organization.name;
 
   return (
-    <div className="flex-1 sm:p-2">
+    <div className="flex-1 sm:p-2 overflow-auto">
       <Header
         title="Dashboard"
         description={`Your workspace at ${organization_name}`}
       />
-      <div className="flex-1 sm:px-2">Hello from page.tsx</div>
+      <DashboardPage />
     </div>
   );
 }

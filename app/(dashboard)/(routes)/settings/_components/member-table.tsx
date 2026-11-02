@@ -1,3 +1,6 @@
+import { styles } from "@/app/styles";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -54,34 +57,91 @@ const invoices = [
   },
 ];
 
+const memberData = [
+  {
+    id: 1,
+    name: "John Doe",
+    role: "Owner",
+    lastActive: "2 hours ago",
+  },
+  {
+    id: 2,
+    name: "Jane Smith",
+    role: "Member",
+    lastActive: "1 day ago",
+  },
+  {
+    id: 3,
+    name: "Michael Johnson",
+    role: "Member",
+    lastActive: "3 days ago",
+  },
+  {
+    id: 4,
+    name: "Emily Davis",
+    role: "Admin",
+    lastActive: "1 week ago",
+  },
+  {
+    id: 5,
+    name: "William Brown",
+    role: "Member",
+    lastActive: "2 weeks ago",
+  },
+];
 export function MemberTable() {
   return (
-    <Table>
-      <TableCaption>A list of your recent invoices.</TableCaption>
+    <Table className="w-full">
       <TableHeader>
-        <TableRow>
-          <TableHead className="w-full">Invoice</TableHead>
-          <TableHead>Status</TableHead>
-          <TableHead>Method</TableHead>
-          <TableHead className="text-right">Amount</TableHead>
+        <TableRow className="text-muted-foreground">
+          <TableHead>Name</TableHead>
+          <TableHead>Role</TableHead>
+          <TableHead>Last active</TableHead>
+          <TableHead className="text-center">Action</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
-        {invoices.map((invoice) => (
-          <TableRow key={invoice.invoice}>
-            <TableCell className="font-medium">{invoice.invoice}</TableCell>
-            <TableCell>{invoice.paymentStatus}</TableCell>
-            <TableCell>{invoice.paymentMethod}</TableCell>
-            <TableCell className="text-right">{invoice.totalAmount}</TableCell>
+        {memberData.map((member) => (
+          <TableRow key={member.id} className="text-muted-foreground">
+            <TableCell className="font-medium">{member.name}</TableCell>
+            <TableCell>
+              {member.role === "Admin" || member.role === "Owner" ? (
+                <Badge
+                  className={`bg-primary dark:${styles.primaryBgColor} text-white rounded-sm`}
+                >
+                  {member.role}
+                </Badge>
+              ) : (
+                <Badge variant="destructive" className="rounded-sm">
+                  {member.role}
+                </Badge>
+              )}
+            </TableCell>
+            <TableCell>{member.lastActive}</TableCell>
+            <TableCell>
+              <div className="flex items-center justify-center gap-x-2 mr-1">
+                <Button
+                  type="button"
+                  size="sm"
+                  className={`hover:bg-primary text-white px-2 dark:${styles.primaryHoverBgColor} dark:${styles.primaryBgColor} cursor-pointer font-normal`}
+                >
+                  Edit
+                </Button>
+
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className=" px-2 cursor-pointer font-normal text-red-600 hover:text-red-600"
+                  // onClick={() => setOpen(true)}
+                >
+                  Remove
+                </Button>
+              </div>
+            </TableCell>
           </TableRow>
         ))}
       </TableBody>
-      <TableFooter>
-        <TableRow>
-          <TableCell colSpan={3}>Total</TableCell>
-          <TableCell className="text-right">$2,500.00</TableCell>
-        </TableRow>
-      </TableFooter>
     </Table>
   );
 }

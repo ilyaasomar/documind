@@ -112,10 +112,10 @@ export function AppSidebar() {
                   </SidebarMenuButton>
                 }
               />
-              <DropdownMenuContent align="end">
+              <DropdownMenuContent align="end" className="mb-1">
                 <DropdownMenuItem onClick={() => router.push("/settings")}>
                   <User className="size-4" />
-                  Profile
+                  Settings
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   variant="destructive"
