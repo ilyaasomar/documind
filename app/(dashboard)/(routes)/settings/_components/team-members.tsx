@@ -18,8 +18,8 @@ const TeamMembers = () => {
         </div>
         {/* button */}
         <Button
-          variant="default"
-          className={`hover:${styles.primaryBgColor} cursor-pointer rounded-sm`}
+          variant="outline"
+          className={`text-xs cursor-pointer rounded-sm`}
         >
           Invite member
         </Button>

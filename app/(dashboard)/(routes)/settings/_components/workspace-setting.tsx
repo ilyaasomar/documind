@@ -1,9 +1,16 @@
+"use client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import React from "react";
 
-const WorkspaceSetting = () => {
+import React, { useState } from "react";
+type WorkspaceProps = {
+  id: string;
+  name: string;
+  slug: string;
+}[];
+const WorkspaceSetting = ({ workspace }: { workspace: WorkspaceProps }) => {
+  const [workspace_name, setWorkspace_name] = useState(workspace[0].name);
   return (
     <Card className="w-full rounded-md py-4 px-0 gap-3">
       <CardHeader className="">
@@ -16,7 +23,12 @@ const WorkspaceSetting = () => {
           <Label className="text-xs text-muted-foreground">
             Workspace Name
           </Label>
-          <Input placeholder="Workspace Name" className="mt-2" />
+          <Input
+            value={workspace_name}
+            placeholder="Workspace Name"
+            className="mt-2"
+            onChange={(e) => setWorkspace_name(e.target.value)}
+          />
         </div>
         {/* <div>
           <Label>Plan</Label>

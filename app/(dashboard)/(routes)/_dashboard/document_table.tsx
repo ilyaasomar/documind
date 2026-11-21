@@ -1,6 +1,5 @@
 "use client";
 import { useRouter } from "next/navigation";
-import React from "react";
 
 const typeColors: Record<string, string> = {
   PDF: "bg-[#eef2f8] text-[#1d4f9c]",

@@ -1,41 +1,18 @@
 import React from "react";
 import TopCards from "./cards";
 import { db } from "@/db";
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { getMembership } from "@/lib/actions/get-membership";
 import { conversations, documents, messages } from "@/db/schema";
 import DocumentTable from "./document_table";
-
-const recent = [
-  {
-    question: "What is the notice period in the Nordwind supplier agreement?",
-    time: "14 minutes ago",
-    document: "Supplier agreement – Nordwind GmbH.pdf",
-    type: "PDF",
-  },
-  {
-    question: "How many vacation days do employees get after five years?",
-    time: "2 hours ago",
-    document: "Employee handbook 2026.docx",
-    type: "DOCX",
-  },
-  {
-    question: "Which invoices from Metzler are still unpaid this quarter?",
-    time: "Yesterday, 16:40",
-    document: "Invoice 2026-0417 – Metzler Logistik.pdf",
-    type: "PDF",
-  },
-  {
-    question: "Can I claim a taxi to the airport under the travel policy?",
-    time: "Yesterday, 09:12",
-    document: "Travel expense policy.txt",
-    type: "TXT",
-  },
-];
+import { redirect } from "next/navigation";
+import RecentConversations from "./recent_conversations";
+// formats the hours and minutes as ago
 
 const DashboardPage = async () => {
   // get membership
   const membership = await getMembership();
+  if (!membership) redirect("/signin");
 
   const allDocuments = await db
     .select({
@@ -49,7 +26,8 @@ const DashboardPage = async () => {
       createdAt: documents.createdAt,
     })
     .from(documents)
-    .where(eq(documents?.organizationId, membership?.member?.organizationId));
+    .where(eq(documents?.organizationId, membership?.member?.organizationId))
+    .orderBy(desc(documents.createdAt));
 
   // question
   const allQuestions = await db
@@ -59,20 +37,35 @@ const DashboardPage = async () => {
       content: messages.content,
       role: messages.role,
       createdAt: messages.createdAt,
+      file_name: documents.name,
+      file_type: documents.fileType,
     })
     .from(messages)
     .innerJoin(conversations, eq(messages.conversationId, conversations.id))
+    .innerJoin(documents, eq(conversations.documentId, documents.id))
     .where(
       and(
         eq(conversations.organizationId, membership?.member?.organizationId),
         eq(messages.role, "user"),
       ),
+    )
+    .orderBy(desc(messages.createdAt));
+
+  // get total questions asked this month
+  const currentMonthQuestions = allQuestions.filter((question) => {
+    const questionDate = new Date(question.createdAt);
+    const currentDate = new Date();
+    return (
+      questionDate.getMonth() === currentDate.getMonth() &&
+      questionDate.getUTCFullYear() === currentDate.getFullYear()
     );
+  });
+  console.log("currentMonthQuestions", currentMonthQuestions.length);
 
-  console.log("allQuestions", allQuestions);
+  // get the last 5 documents and conversations
+  const last_documents = allDocuments.slice(0, 5);
+  const last_conversations = allQuestions.slice(0, 5);
 
-  // last 5 documents
-  const last_documents = allDocuments.slice(-5).reverse();
   // format the sizeBytes to KB, MB, GB
   const formatFileSize = (sizeInBytes: number): string => {
     if (sizeInBytes < 1024) {
@@ -85,18 +78,23 @@ const DashboardPage = async () => {
       return `${(sizeInBytes / 1073741824).toFixed(2)} GB`;
     }
   };
-  const last_documents_formatted = last_documents.map((doc) => {
+  const formatFileType = (fileType: string): string => {
+    switch (fileType) {
+      case "pdf":
+        return "PDF";
+      case "docx":
+        return "DOCX";
+      case "xlsx":
+        return "XLSX";
+      case "txt":
+        return "TXT";
+      default:
+        return "Unknown";
+    }
+  };
+  const documents_formatted = last_documents.map((doc) => {
     const file_size = formatFileSize(doc.sizeBytes);
-    const file_type =
-      doc.fileType === "pdf"
-        ? "PDF"
-        : doc.fileType === "docx"
-          ? "DOCX"
-          : doc.fileType === "xlsx"
-            ? "XLSX"
-            : doc.fileType === "txt"
-              ? "TXT"
-              : "";
+    const file_type = formatFileType(doc.fileType);
     const status =
       doc.status === "ready"
         ? "Ready"
@@ -113,6 +111,19 @@ const DashboardPage = async () => {
       status: status,
     };
   });
+
+  // formatted conversations
+  const conversations_formatted = last_conversations.map((conv) => {
+    const file_type = formatFileType(conv.file_type);
+    return {
+      id: conv.id,
+      question: conv.content,
+      document: conv.file_name,
+      type: file_type,
+      createdAt: conv.createdAt,
+    };
+  });
+
   const cardsData = [
     {
       title: "Total Documents",
@@ -120,7 +131,7 @@ const DashboardPage = async () => {
     },
     {
       title: "Questions asked this month",
-      count: 30,
+      count: currentMonthQuestions.length,
     },
     {
       title: "Questions asked",
@@ -137,39 +148,11 @@ const DashboardPage = async () => {
         ))}
       </div>
       {/* recent conversations */}
-      <div className="rounded-[10px] border border-[#e3e5e9] bg-white dark:bg-[#0a0a0a] dark:border-[#2c2c2c]">
-        <div className="flex items-center justify-between border-b border-[#edeef1] px-4 py-3">
-          <h2 className="text-sm font-semibold">Recent conversations</h2>
-          <button className="text-[13px] text-[#1d4f9c]">Open chat</button>
-        </div>
-
-        {recent.map((item) => (
-          <div
-            key={item.question}
-            className="border-t border-[#f1f2f5] px-4 py-3 hover:bg-[#fafbfc] dark:hover:bg-[#2c2c2c] cursor-pointer"
-          >
-            <div className="flex items-baseline gap-4">
-              <span className="flex-1 text-[13.5px] font-medium">
-                {item.question}
-              </span>
-              <span className="text-xs text-[#8b9199]">{item.time}</span>
-            </div>
-
-            <div className="mt-2 flex">
-              <span className="flex items-center gap-1.5 rounded-[5px] border border-[#e3e5e9] dark:text-white bg-[#fafbfc] dark:bg-[#0a0a0a] px-2 py-0.5 text-[11.5px] text-[#4a5058]">
-                <span className="text-[9px] font-semibold text-[#8b9199] dark:text-white">
-                  {item.type}
-                </span>
-                {item.document}
-              </span>
-            </div>
-          </div>
-        ))}
-      </div>
+      <RecentConversations recent={conversations_formatted} />
 
       {/* documents */}
       <DocumentTable
-        document_data={last_documents_formatted as any}
+        document_data={documents_formatted as any}
         count={allDocuments.length}
       />
     </div>
