@@ -1,11 +1,12 @@
 import { db } from "@/db";
 import { chunks, documents, fileTypeEnum, organization } from "@/db/schema";
 import { createHash } from "crypto";
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { deleteObject, getObject, uploadObject } from "../r2";
 
 import { extractText, getDocumentProxy } from "unpdf";
 import { generateEmbeddings } from "./embeddings";
+import { getUsage } from "./usage";
 
 const MAX_SIZE = 50 * 1024 * 1024; // 50MB
 
@@ -57,10 +58,16 @@ export async function createDocument({
     return { duplicate: true as const, document: existing };
   }
 
-  // 4. upload to R2 first, so a failure leaves no row behind
+  // 4. before upload to R2, check if this organization has reached it's storage limit or not
+  const usage = await getUsage(organizationId);
+  if (usage.uploadedBytes + file.size > usage.uploadLimit) {
+    throw new Error("You reached your upload limit for this month.");
+  }
+
+  // 5. upload to R2 first, so a failure leaves no row behind
   const storageKey = `orgs/${organizationId}/documents/${Date.now()}-${file.name}`;
   await uploadObject(storageKey, buffer, file.type);
-  // 5. save the row
+  // 6. save the row
   try {
     const [document] = await db
       .insert(documents)
@@ -77,6 +84,12 @@ export async function createDocument({
         progress: 0,
       })
       .returning();
+
+    // everything worked, now update the usage
+    await db
+      .update(organization)
+      .set({ uploadedBytes: sql`${organization.uploadedBytes} + ${file.size}` })
+      .where(eq(organization.id, organizationId));
     return { duplicate: false as const, document };
   } catch (error) {
     await deleteObject(storageKey);

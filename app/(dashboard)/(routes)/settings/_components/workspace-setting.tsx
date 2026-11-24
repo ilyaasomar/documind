@@ -14,11 +14,17 @@ type WorkspaceProps = {
   id: string;
   name: string;
   slug: string;
+  uploaded_bytes: number;
+  questions_used: number;
 }[];
 
 const WorkspaceSetting = ({ workspace }: { workspace: WorkspaceProps }) => {
   const [workspace_name, setWorkspace_name] = useState(workspace[0].name);
 
+  const plan_info = {
+    label: "Free",
+    count: workspace[0].uploaded_bytes,
+  };
   return (
     <div className="rounded-[10px] border border-[#e3e5e9] bg-white p-4 dark:border-[#2c2c2c] dark:bg-[#0a0a0a]">
       <h2 className="mb-3 text-sm font-semibold">Workspace</h2>

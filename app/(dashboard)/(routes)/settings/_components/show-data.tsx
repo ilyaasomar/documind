@@ -7,6 +7,8 @@ type WorkspaceProps = {
   id: string;
   name: string;
   slug: string;
+  uploaded_bytes: number;
+  questions_used: number;
 }[];
 const ShowSettingsData = ({ workspace }: { workspace: WorkspaceProps }) => {
   return (

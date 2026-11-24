@@ -2,6 +2,7 @@ import { db } from "@/db";
 import { getMembership } from "@/lib/actions/get-membership";
 import { processConversation } from "@/lib/actions/conversation";
 import { NextRequest, NextResponse } from "next/server";
+import { getUsage } from "@/lib/actions/usage";
 
 export async function POST(request: NextRequest) {
   const { inputValue: prompt, selectedDocument: selectedDocumentId } =
@@ -16,6 +17,7 @@ export async function POST(request: NextRequest) {
       { status: 403 },
     );
   }
+
   if (!prompt || !selectedDocumentId) {
     return NextResponse.json(
       {
@@ -41,6 +43,18 @@ export async function POST(request: NextRequest) {
     }
     const userId = membership.member.userId;
     const organizationId = membership.member.organizationId;
+
+    // check if the organization reaches it's limit
+    const usage = await getUsage(organizationId);
+    if (usage.questionsUsed >= usage.questionsLimit) {
+      return NextResponse.json(
+        {
+          message:
+            "You used all your questions this month. Upgrade to Pro to continue.",
+        },
+        { status: 402 },
+      );
+    }
 
     const { conversationId, result } = await processConversation(
       prompt,

@@ -1,6 +1,12 @@
 import { db } from "@/db";
 
-import { chunks, conversations, messageCitations, messages } from "@/db/schema";
+import {
+  chunks,
+  conversations,
+  messageCitations,
+  messages,
+  organization,
+} from "@/db/schema";
 import { generateEmbedding } from "./embeddings";
 import { and, cosineDistance, desc, eq, sql } from "drizzle-orm";
 
@@ -144,6 +150,12 @@ export async function processConversation(
             score: match.similarity,
           })),
         );
+
+        // now update the questions used in order to see the total usage of questons
+        await db
+          .update(organization)
+          .set({ questionsUsed: sql`${organization.questionsUsed} + 1` })
+          .where(eq(organization.id, organizationId));
       },
     });
 

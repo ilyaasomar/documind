@@ -10,6 +10,7 @@ import {
   vector,
   real,
   uniqueIndex,
+  bigint,
 } from "drizzle-orm/pg-core";
 
 // enums
@@ -126,11 +127,27 @@ export const organization = pgTable("organization", {
   slug: text("slug").notNull().unique(),
   logo: text("logo"),
   metadata: text("metadata"),
+  planId: text("plan_id")
+    .default("free")
+    .notNull()
+    .references(() => plans.id),
+  uploadedBytes: bigint("uploaded_bytes", { mode: "number" })
+    .default(0)
+    .notNull(), // i store how many bytes every organization use in order to calculate the amount they consumed
+  questionsUsed: integer("question_used").default(0).notNull(), // i store how many questions they asked
+  usageResetAt: timestamp("usage_reset_at").defaultNow().notNull(), // i store the reset time
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at")
     .defaultNow()
     .$onUpdate(() => /* @__PURE__ */ new Date())
     .notNull(),
+});
+
+export const plans = pgTable("plans", {
+  id: text("id").primaryKey(), // "free", "pro"
+  name: text("name").notNull(), // "Free", "Pro"
+  uploadBytesLimit: bigint("upload_bytes", { mode: "number" }).notNull(),
+  questionsLimit: integer("questions").notNull(),
 });
 
 export const member = pgTable(
