@@ -9,6 +9,9 @@ type WorkspaceProps = {
   slug: string;
   uploaded_bytes: number;
   questions_used: number;
+  plan: string;
+  upload_bytes_limit: number;
+  questions_limit: number;
 }[];
 const ShowSettingsData = ({ workspace }: { workspace: WorkspaceProps }) => {
   return (

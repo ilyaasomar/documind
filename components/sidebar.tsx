@@ -28,7 +28,12 @@ import PlanUsage from "./plan-usage";
 
 const ACTIVE_CLASSES = `bg-primary dark:bg-[#1d4f9c] text-white hover:bg-primary hover:text-white rounded-sm focus:bg-primary focus:text-white active:bg-primary active:text-white data-[state=open]:bg-primary data-[state=open]:text-white`;
 
-export function AppSidebar() {
+type UsageProps = {
+  id: string;
+  questions_used: number;
+  questions_limit: number;
+}[];
+export function AppSidebar({ usage }: { usage: UsageProps }) {
   const session = useSession();
   const routes = Routes();
   const { state } = useSidebar(); // "expanded" | "collapsed" | "hidden"
@@ -92,7 +97,7 @@ export function AppSidebar() {
       </SidebarContent>
 
       {/* plan usage */}
-      <PlanUsage />
+      <PlanUsage consumed_questions={usage} />
       {/* sidebar footer */}
       <SidebarFooter>
         <SidebarMenu
